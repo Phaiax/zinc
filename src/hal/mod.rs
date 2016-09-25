@@ -50,5 +50,5 @@ pub mod stack;
 pub mod timer;
 pub mod uart;
 
-#[cfg(target_os = "none")]
+#[cfg(any(target_os = "none",feature="mcu_k20"))]
 pub mod isr;

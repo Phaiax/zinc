@@ -19,3 +19,6 @@ pub mod lcd;
 pub mod bluenrg;
 pub mod chario;
 pub mod dht22;
+
+#[cfg(feature = "mcu_k20")]
+pub mod apa102;

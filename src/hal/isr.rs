@@ -38,3 +38,9 @@
 
 #[cfg(feature = "mcu_tiva_c")]
 #[path="tiva_c/isr.rs"] pub mod isr_tiva_c;
+
+/// An Interrupt service routine (aka C function pointer)
+pub type ISR = Option<unsafe extern fn()>;
+
+/// A slice wrapped around an Interrupt Vector Table
+pub type VectorTable<'a> = &'a [ISR];

@@ -23,7 +23,7 @@ on the package.
 use core::option::Option;
 use core::marker::Copy;
 
-use super::sim;
+use super::regs::reg::{SIM,Sim_scgc5_porta,Sim_scgc5_portb,Sim_scgc5_portc,Sim_scgc5_portd,Sim_scgc5_porte};
 
 use self::Port::*;
 use self::Function::*;
@@ -41,7 +41,7 @@ pub struct Pin {
 
 /// Available port names.
 #[allow(missing_docs)]
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum Port {
   PortA = 1,
   PortB = 2,
@@ -107,6 +107,16 @@ impl Pin {
     pin
   }
 
+  fn enable_port_clock(&self) {
+    match self.port {
+      PortA => SIM.scgc5.set_porta(Sim_scgc5_porta::ClockEnabled),
+      PortB => SIM.scgc5.set_portb(Sim_scgc5_portb::ClockEnabled),
+      PortC => SIM.scgc5.set_portc(Sim_scgc5_portc::ClockEnabled),
+      PortD => SIM.scgc5.set_portd(Sim_scgc5_portd::ClockEnabled),
+      PortE => SIM.scgc5.set_porte(Sim_scgc5_porte::ClockEnabled),
+    };
+  }
+
   fn setup_regs(&self, function: Function,
       gpiodir: Option<::hal::pin::GpioDirection>,
       pull: PullConf, drive_strength: DriveStrength,
@@ -115,8 +125,7 @@ impl Pin {
     use self::reg::Port_pcr_sre as sre;
     use self::reg::Port_pcr_dse as dse;
 
-    // enable port clock
-    sim::enable_PORT(self.port);
+    self.enable_port_clock();
 
     let (pe, ps) = match pull {
       PullNone => (false, ps::PULL_DOWN),
@@ -165,6 +174,11 @@ impl Pin {
       PortE => &reg::PORT_E,
     };
     return &port.pcr[self.pin as usize];
+  }
+
+  /// Set an alternate mode function for this pin.
+  pub fn set_function(&self, func: Function) {
+    self.pcr().set_mux(func as u32);
   }
 }
 

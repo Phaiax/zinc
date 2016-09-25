@@ -16,7 +16,12 @@
 
 //! ISR Data for k20
 
-use core::option::Option::{self, Some, None};
+use core::option::Option::{Some, None};
+use core::slice;
+use hal::isr::isr_cortex_m4;
+use hal::cortex_common::scb;
+use hal::cortex_common::nvic;
+use hal::isr;
 
 extern {
   fn isr_dma_0();
@@ -100,12 +105,12 @@ pub static FlashConfigField: [usize; 4] = [
 ];
 
 #[allow(non_upper_case_globals)]
-const ISRCount: usize = 95;
+const ISR_COUNT: usize = 95;
 
 #[link_section=".isr_vector_nvic"]
 #[allow(non_upper_case_globals)]
 #[no_mangle]
-pub static NVICVectors: [Option<unsafe extern fn()>; ISRCount] = [
+pub static NVIC_VECTORS: [isr::ISR; ISR_COUNT] = [
   Some(isr_dma_0),
   Some(isr_dma_1),
   Some(isr_dma_2),
@@ -202,3 +207,183 @@ pub static NVICVectors: [Option<unsafe extern fn()>; ISRCount] = [
   None,
   Some(isr_soft),
 ];
+
+/// The Full set of k20 Interrupt Vectors
+#[repr(C)]
+#[derive(Ord, PartialOrd, Eq, PartialEq, Clone, Copy, Debug)]
+pub enum InterruptVector {
+    // ARM Common
+    InitialStackPointer = 0,
+    InitialProgramCounter = 1,
+    NonMaskableInterrupt = 2,
+    HardFault = 3,
+    MemoryManagementFault = 4,
+    BusFault = 5,
+    UsageFault = 6,
+    SupervisorCall = 11,
+    DebugMonitor = 12,
+    SysPendingReq = 14,
+    SysTick = 15,
+
+    DMA0TransferComplete = 16,
+    DMA1TransferComplete = 17,
+    DMA2TransferComplete = 18,
+    DMA3TransferComplete = 19,
+    DMA4TransferComplete = 20,
+    DMA5TransferComplete = 21,
+    DMA6TransferComplete = 22,
+    DMA7TransferComplete = 23,
+    DMA8TransferComplete = 24,
+    DMA9TransferComplete = 25,
+    DMA10TransferComplete = 26,
+    DMA11TransferComplete = 27,
+    DMA12TransferComplete = 28,
+    DMA13TransferComplete = 29,
+    DMA14TransferComplete = 30,
+    DMA15TransferComplete = 31,
+    DMAError = 32,
+
+    FlashCommandComplete = 34,
+    FlashReadCollision = 35,
+    LowVoltageWarnDetect = 36,
+    LowLeakageWakeup = 37,
+    Watchdog = 38,
+
+    I2C0 = 40,
+    I2C1 = 41,
+    SPI0 = 42,
+    SPI1 = 43,
+
+    Can0OredMessageBuf = 45,
+    Can0BusOff = 46,
+    Can0Error = 47,
+    Can0TxWarning = 48,
+    Can0RxWarning = 49,
+    Can0Wakup = 50,
+    I2S0Tx = 51,
+    I2S0Rx = 52,
+
+    Uart0LON = 60,
+    Uart0Status = 61,
+    Uart0Error = 62,
+    Uart1Status = 63,
+    Uart1Error = 64,
+    Uart2Status = 65,
+    Uart2Error = 66,
+
+    ADC0 = 73,
+    ADC1 = 74,
+    CMP0 = 75,
+    CMP1 = 76,
+    CMP2 = 77,
+    FTM0 = 78,
+    FTM1 = 79,
+    FTM2 = 80,
+    CMT = 81,
+    RTCAlarm = 82,
+    RTCSeconds = 83,
+    Pit0 = 84,
+    Pit1 = 85,
+    Pit2 = 86,
+    Pit3 = 87,
+    PDB = 88,
+    USBOTG = 89,
+    USBDCD = 90,
+
+    DAC0 = 97,
+
+    TSI = 99,
+    MCG = 100,
+    LowPowerTimer = 101,
+
+    PortAPinDetect = 103,
+    PortBPinDetect = 104,
+    PortCPinDetect = 105,
+    PortDPinDetect = 106,
+    PortEPinDetect = 107,
+
+    Software = 110,
+}
+
+impl InterruptVector {
+    /// Convert an Interrupt Vector to a SCB_VTOR offset
+    pub fn offset(&self) -> usize {
+        (*self as usize) * 4
+    }
+
+    /// True if this interrupt vector is enabled in the NVIC
+    pub fn is_enabled(&self) -> bool {
+        nvic::is_enabled(self.offset())
+    }
+
+    /// Enables this interrupt in the NVIC
+    pub fn enable(&self) {
+        nvic::enable_irq(self.offset());
+    }
+
+    /// Disables this interrupt in the NVIC
+    pub fn disable(&self) {
+        nvic::disable_irq(self.offset());
+    }
+
+    /// True if there this interrupt is flagged as pending 
+    pub fn is_pending(&self) -> bool {
+        nvic::is_pending(self.offset())
+    }
+    
+    /// Clear the pending flag for this interrupt
+    pub fn clear_pending(&self) {
+        nvic::clear_pending(self.offset());
+    }
+
+    /// True if this interrupt is active
+    pub fn is_active(&self) -> bool {
+        nvic::is_active(self.offset())
+    }
+
+    /// Set the priority of this interrupt
+    pub fn set_priority(&self, prio: u8) {
+        nvic::set_priority(self.offset(), prio);
+    }
+
+    /// Get the priority of this interrupt
+    pub fn priority(&self) -> u8 {
+        nvic::get_priority(self.offset())
+    }
+
+    /// Get the address of the ISR handler
+    pub fn handler(&self) -> isr::ISR {
+        current_vector_table()[*self as usize]
+    }
+
+}
+
+fn current_vector_table() -> isr::VectorTable<'static> {
+    unsafe { scb::scb_vtor(TOTAL_ISR_COUNT) }
+}
+
+const TOTAL_ISR_COUNT: usize = ISR_COUNT + isr_cortex_m4::ISRCount;
+
+pub type K20VectorTable = [isr::ISR; TOTAL_ISR_COUNT];
+
+#[link_section=".ram_isr_vector"]
+#[allow(non_upper_case_globals)]
+#[no_mangle]
+pub static mut NVIC_VECTORS_RAM: K20VectorTable = [None; TOTAL_ISR_COUNT];
+
+/// Relocate the ISR Table into Ram from flash.
+pub fn install_ram_vectors() {
+    let flash_addr = &isr_cortex_m4::ISRVectors[0] as *const isr::ISR;
+
+    unsafe {
+        let flash_nvic =
+            slice::from_raw_parts::<isr::ISR>(flash_addr,
+                                              TOTAL_ISR_COUNT);
+
+        let mut ram_nvic: isr::VectorTable = &NVIC_VECTORS_RAM[..];
+
+        ram_nvic.clone_from(&flash_nvic);
+
+        scb::relocate_isrs(ram_nvic);
+    }
+}

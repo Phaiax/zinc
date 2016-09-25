@@ -15,18 +15,14 @@
 
 //! Stack layout information.
 
-use core::intrinsics::transmute;
-
 extern {
-  fn __STACK_BASE();
+  static __STACK_BASE: usize;
   static mut __STACK_LIMIT: u32;
 }
 
 /// Returns the address of main stack base (end of ram).
 pub fn stack_base() -> usize {
-    unsafe {
-        transmute(__STACK_BASE as unsafe extern "C" fn())
-    }
+    __STACK_BASE
 }
 
 /// Returns the current stack limit.

@@ -19,6 +19,9 @@
 //! System Control Block ACTLR memory location is 0xE000_E008;
 //  Link: http://infocenter.arm.com/help/topic/com.arm.doc.dui0552a/CIHFDJCA.html
 
+use hal::isr::{ISR, VectorTable};
+use core::slice;
+
 #[inline(always)]
 fn get_reg() -> &'static reg::SCB {
   unsafe { &*(0xE000_ED00 as *mut reg::SCB) }
@@ -37,6 +40,29 @@ pub fn set_pendsv(val: bool) {
   } else {
     get_reg().icsr.set_pendsvclr(true);
   }
+}
+
+/// Updates the base address for the ISR Vector Table. The vtor address must be 128 byte aligned (bottom 7 bits 0).
+///
+/// This allows you to relocate the vectory table into RAM (from Flash) to get reliable interrupt operations while writing to flash.
+///
+/// The default is 0 (Vector table at start of Flash)
+///
+/// # Examples
+///
+/// pub type VectorTable = [Option<unsafe extern fn()>; TotalISRCount];
+/// pub static mut NVICVectorsRam: VectorTable = [...; TotalISRCount];
+///
+/// relocate_isrs(unsafe { &NVICVectorsRam as *const VectorTable } as u32);
+pub fn relocate_isrs(vtor: VectorTable) {
+    get_reg().vtor.ignoring_state()
+        .set_tbloff( (vtor.as_ptr() as u32).rotate_right(7) );
+}
+
+/// Returns the vector table as a slice if the caller knows the size
+pub unsafe fn scb_vtor(len: usize) -> VectorTable<'static> {
+    let addr = get_reg().vtor.tbloff().rotate_left(7) as *const ISR;
+    slice::from_raw_parts::<ISR>(addr, len)
 }
 
 mod reg {

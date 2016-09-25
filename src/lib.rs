@@ -35,12 +35,13 @@ though.
 
 ### Supported ARM MCUs
 
-Two MCUs are supported at the moment, specifically
+A number of are supported at the moment, specifically
 
  * NXP LPC1768
  * ST STM32F407
  * ST STM32L152RCT6
  * Freescale MK20DX32
+ * Freescale MK20DX256VLH7
  * TI TM4C123GXL
 
 The code is generic enough to support other MCUs in the same family (LPC17xx and
@@ -58,9 +59,10 @@ extern crate rlibc;
 
 #[cfg(test)] #[macro_use(expect)] extern crate expectest;
 
+#[macro_use] pub mod util;
+
 pub mod drivers;
 pub mod hal;
-pub mod util;
 pub mod os;
 
 /// Export a subset of `core` as `std.

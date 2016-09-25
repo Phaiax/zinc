@@ -15,9 +15,14 @@
 
 //! Helper methods.
 
+/// Provides the wait_for macro, making it easier to write routines that must poll for register values.
+#[macro_use]
+pub mod wait_for;
+
 pub mod strconv;
 pub mod support;
 pub mod shared;
 #[cfg(feature = "multitasking")] pub mod queue;
 
 mod lang_items;
+

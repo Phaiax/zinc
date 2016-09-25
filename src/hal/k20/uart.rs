@@ -21,25 +21,42 @@ use core::intrinsics::abort;
 
 use drivers::chario::CharIO;
 use hal::uart;
+use hal::k20::regs::reg::*;
+use hal::k20::pin::Pin;
+use hal::k20::pin::Port::*;
+use hal::k20::pin::Function::*;
 
 use self::UARTPeripheral::*;
-
-#[path="../../util/wait_for.rs"]
-#[macro_use] mod wait_for;
+use self::UARTPinFunction::*;
 
 /// Available UART peripherals.
 #[allow(missing_docs)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum UARTPeripheral {
   UART0,
   UART1,
   UART2,
 }
 
+/// UART Functions a pin can perform
+#[derive(PartialEq, Clone, Copy)]
+pub enum UARTPinFunction {
+  /// Serial Receive
+  Rx,
+  /// Serial Transmit
+  Tx,
+  /// Request to Send
+  RTS,
+  /// Clear to Send
+  CTS
+}
+
+
 /// Structure describing a UART instance.
 #[derive(Clone, Copy)]
 pub struct UART {
   reg: &'static reg::UART,
+  peripheral: UARTPeripheral
 }
 
 /// Stop bits configuration.
@@ -73,19 +90,35 @@ impl UARTPeripheral {
 impl UART {
   /// Returns platform-specific UART object that implements CharIO trait.
   pub fn new(peripheral: UARTPeripheral, baudrate:  u32, word_len: u8,
-      parity: uart::Parity, stop_bits: u8) -> UART {
+             parity: uart::Parity, stop_bits: u8,
+             rx_pin: Pin, tx_pin: Pin) -> UART {
     let uart = UART {
-      reg: peripheral.reg()
+      reg: peripheral.reg(),
+      peripheral: peripheral,
     };
+
+    // Enable Clock Gate for the UART
+    match peripheral {
+      UART0 => {SIM.scgc4.set_uart0(Sim_scgc4_uart0::ClockEnabled);},
+      UART1 => {SIM.scgc4.set_uart1(Sim_scgc4_uart1::ClockEnabled);},
+      UART2 => {SIM.scgc4.set_uart2(Sim_scgc4_uart2::ClockEnabled);},
+    }
+    
     uart.set_baud_rate(baudrate);
     uart.set_mode(reg::UART_c1_m::from_u8(word_len), parity, StopBit::from_u8(stop_bits));
     uart.set_fifo_enabled(true);
 
+    uart.init_pin(rx_pin, Rx);
+    uart.init_pin(tx_pin, Tx);
+    
     uart
   }
 
   fn uart_clock(&self) -> u32 {
-    48000000 // FIXME(bgamari): Use peripheral clocks
+    match self.peripheral {
+      UART0|UART1 => super::clocks::system_clock().expect("Clock not initialized"),
+      UART2 => super::clocks::bus_clock().expect("Clock not initialized"),
+    }
   }
 
   fn set_baud_rate(&self, baud_rate: u32) {
@@ -113,6 +146,36 @@ impl UART {
   fn set_fifo_enabled(&self, enabled: bool) {
     (*(self.reg)).pfifo.set_rxfe(enabled).set_txfe(enabled);
   }
+
+  fn init_pin(&self, pin: Pin, function: UARTPinFunction) {
+    let altfn = match (pin.port, pin.pin, self.peripheral, function) {
+      (PortE,  0, UART1, Tx)  => AltFunction3,
+      (PortE,  1, UART1, Rx)  => AltFunction3,
+      (PortA,  0, UART0, CTS) => AltFunction2,
+      (PortA,  1, UART0, Rx)  => AltFunction2,
+      (PortA,  2, UART0, Tx)  => AltFunction2,
+      (PortA,  3, UART0, RTS) => AltFunction2,
+      (PortB,  2, UART0, RTS) => AltFunction3,
+      (PortB,  3, UART0, CTS) => AltFunction3,
+      (PortB, 16, UART0, Rx)  => AltFunction3,
+      (PortB, 17, UART0, Tx)  => AltFunction3,
+      (PortC,  1, UART1, RTS) => AltFunction3,
+      (PortC,  2, UART1, CTS) => AltFunction3,
+      (PortC,  3, UART1, Rx)  => AltFunction3,
+      (PortC,  4, UART1, Tx)  => AltFunction3,
+      (PortD,  0, UART2, RTS) => AltFunction3,
+      (PortD,  1, UART2, CTS) => AltFunction3,
+      (PortD,  2, UART2, Rx)  => AltFunction3,
+      (PortD,  3, UART2, Tx)  => AltFunction3,
+      (PortD,  4, UART0, RTS) => AltFunction3,
+      (PortD,  5, UART0, CTS) => AltFunction3,
+      (PortD,  6, UART0, Rx)  => AltFunction3,
+      (PortD,  7, UART0, Tx)  => AltFunction3,
+      _ => panic!("Invalid pin for function")
+    };
+
+    pin.set_function(altfn);
+  }
 }
 
 impl CharIO for UART {
@@ -121,6 +184,19 @@ impl CharIO for UART {
     self.reg.d.set_re(value as u8);
   }
 }
+
+use core::fmt::{Write, Result};
+
+impl Write for UART {
+    fn write_str(&mut self, s: &str) -> Result {
+        for byte in s.bytes() {
+            wait_for!(self.reg.s1.tdre());
+            self.reg.d.set_re(byte as u8);
+        }
+        Ok(())
+    }
+}
+
 
 /// Register definitions
 pub mod reg {
