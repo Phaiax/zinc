@@ -33,18 +33,18 @@ pub fn init(state : State) {
   unlock();
   match state {
     Disabled => {
-      reg::WDOG.stctrlh.set_en(false);
+      reg::WDOG().stctrlh.set_en(false);
     },
     Enabled => {
-      reg::WDOG.stctrlh.set_allowupdate(true);
+      reg::WDOG().stctrlh.set_allowupdate(true);
     },
   }
 }
 
 fn unlock() {
-  use self::reg::WDOG_unlock_unlock::*;
-  reg::WDOG.unlock.set_unlock(UnlockSeq1);
-  reg::WDOG.unlock.set_unlock(UnlockSeq2);
+  use self::reg::Wdog_unlock_unlock::*;
+  reg::WDOG().unlock.set_unlock(UnlockSeq1);
+  reg::WDOG().unlock.set_unlock(UnlockSeq2);
 
   // Enforce one cycle delay
   nop();
@@ -52,9 +52,9 @@ fn unlock() {
 
 /// Write refresh sequence to refresh watchdog
 pub fn refresh() {
-  use self::reg::WDOG_refresh_refresh::*;
-  reg::WDOG.refresh.set_refresh(RefreshSeq1);
-  reg::WDOG.refresh.set_refresh(RefreshSeq2);
+  use self::reg::Wdog_refresh_refresh::*;
+  reg::WDOG().refresh.set_refresh(RefreshSeq1);
+  reg::WDOG().refresh.set_refresh(RefreshSeq2);
 }
 
 #[allow(dead_code)]
@@ -62,7 +62,7 @@ mod reg {
   use volatile_cell::VolatileCell;
   use core::ops::Drop;
 
-  ioregs!(WDOG = {
+  ioregs!(Wdog = {
   /// Status and Control Register High
     0x0 => reg16 stctrlh
     {
@@ -92,7 +92,5 @@ mod reg {
   });
 
 
-  extern {
-    #[link_name="k20_iomem_WDOG"] pub static WDOG: WDOG;
-  }
+  ioreg_assign!(k20_iomem_WDOG, WDOG, Wdog);
 }

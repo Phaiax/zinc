@@ -22,7 +22,7 @@ extern {
 
 /// Returns the address of main stack base (end of ram).
 pub fn stack_base() -> usize {
-    __STACK_BASE
+  unsafe { __STACK_BASE }
 }
 
 /// Returns the current stack limit.

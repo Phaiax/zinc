@@ -19,29 +19,29 @@ SPI configuration.
 
 // use core::intrinsics::abort;
 
-use hal::k20::regs::reg;
-use hal::k20::regs::reg::{Spi,
-                          SIM,
-                          Sim_scgc6_spi0,
-                          Sim_scgc6_spi1,
-                          Spi_ctar_ctar_br,
-                          Spi_ctar_ctar_dbr,
-                          Spi_ctar_ctar_pbr,
-                          Spi_ctar_ctar_cpol,
-                          Spi_ctar_ctar_cpha,
-                          Spi_ctar_ctar_lsbfe,
-                          Spi_ctar_ctar_Update,
-                          Spi_ctar_ctar,
-                          Spi_mcr_mstr,
-                          Spi_mcr_halt,
-                          Spi_mcr_mdis,
-                          Spi_pushr_cont,
-                          Spi_pushr_ctas,
-                          Spi_pushr_eoq,
-                          Spi_pushr_ctcnt,
-                          Spi_pushr_Update,
-                          Spi_sr_eoqf,
-                          Spi_sr_tfff
+use hal::k20::regs;
+use hal::k20::regs::{Spi,
+                      SIM,
+                      Sim_scgc6_spi0,
+                      Sim_scgc6_spi1,
+                      Spi_ctar_ctar_br,
+                      Spi_ctar_ctar_dbr,
+                      Spi_ctar_ctar_pbr,
+                      Spi_ctar_ctar_cpol,
+                      Spi_ctar_ctar_cpha,
+                      Spi_ctar_ctar_lsbfe,
+                      Spi_ctar_ctar_Update,
+                      Spi_ctar_ctar,
+                      Spi_mcr_mstr,
+                      Spi_mcr_halt,
+                      Spi_mcr_mdis,
+                      Spi_pushr_cont,
+                      Spi_pushr_ctas,
+                      Spi_pushr_eoq,
+                      Spi_pushr_ctcnt,
+                      Spi_pushr_Update,
+                      Spi_sr_eoqf,
+                      Spi_sr_tfff
 };
 use hal::k20::pin::Pin;
 use hal::k20::pin::Function::*;
@@ -97,8 +97,8 @@ pub enum SPISignificantBit {
 impl SPIPeripheral {
     fn reg(self) -> &'static Spi {
         match self {
-            SPIPeripheral::SPI0 => &reg::SPI0,
-            SPIPeripheral::SPI1 => &reg::SPI1,
+            SPIPeripheral::SPI0 => &regs::SPI0(),
+            SPIPeripheral::SPI1 => &regs::SPI1(),
         }
     }
 }
@@ -137,7 +137,7 @@ use core::default::Default;
 impl Default for SPI {
     fn default() -> SPI {
         SPI {
-            reg: &reg::SPI0,
+            reg: &regs::SPI0(),
             peripheral: SPI0,
             role: Master,
             setup: Default::default()
@@ -175,10 +175,10 @@ impl Default for SPISetup {
 
 impl SPISetup {
     fn update_ctar(&self, mut ctar: Spi_ctar_ctar_Update, frame_size: u32) {
-        let dbr = match self.rate {
-            Normal => Spi_ctar_ctar_dbr::Normal,
-            Doubled => Spi_ctar_ctar_dbr::Doubled
-        };
+        //let dbr = match self.rate {
+        //    Normal => Spi_ctar_ctar_dbr::Normal,
+        //    Doubled => Spi_ctar_ctar_dbr::Doubled
+        //};
         let cpol = match self.mode {
             Mode0 => Spi_ctar_ctar_cpol::InactiveLow,
             Mode1 => Spi_ctar_ctar_cpol::InactiveLow,
@@ -254,8 +254,8 @@ impl SPI {
 
     fn init_clock_gate(&self) {
         match self.peripheral {
-            SPI0 => {SIM.scgc6.set_spi0(Sim_scgc6_spi0::ClockEnabled);},
-            SPI1 => {SIM.scgc6.set_spi1(Sim_scgc6_spi1::ClockEnabled);},
+            SPI0 => {SIM().scgc6.set_spi0(Sim_scgc6_spi0::ClockEnabled);},
+            SPI1 => {SIM().scgc6.set_spi1(Sim_scgc6_spi1::ClockEnabled);},
         }
     }
 
@@ -348,7 +348,7 @@ impl<'a> SPITransmit for &'a [u32] {
         assert!(self.len() > 0);
         spi.init_transmission();
 
-        let end = self.len() - 1;
+        //let end = self.len() - 1;
         for i in 0..self.len() {
             // Clear End of Queue Flag
             spi.reg.sr
@@ -431,6 +431,7 @@ impl<'a> Spi_pushr_Update<'a> {
             .set_txdata(data as u32)
     }
 
+    #[allow(dead_code)]
     fn tx8<'b>(&'b mut self, data: u8) -> &'b mut Spi_pushr_Update<'a> {
         self
             .set_eoq(Spi_pushr_eoq::NotEndOfQueue) // Default not end of queue

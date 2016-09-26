@@ -1,5 +1,5 @@
 
-use hal::k20::regs::reg;
+use hal::k20::regs;
 
 /// Available PIT channels.
 #[allow(missing_docs)]
@@ -13,27 +13,29 @@ pub enum PITChannel {
 
 /// Structure describing a PIT channel.
 #[derive(Clone, Copy)]
-pub struct PIT {
-  timer: &'static reg::Pit_timer,
+pub struct Pit {
+  #[allow(dead_code)]
+  timer: &'static regs::Pit_timer,
+  #[allow(dead_code)]
   channel: PITChannel
 }
 
 impl PITChannel {
-    fn timer(self) -> &'static reg::Pit_timer {
+    fn timer(self) -> &'static regs::Pit_timer {
         match self {
-            PITChannel::PIT0 => &reg::PIT.timer[0],
-            PITChannel::PIT1 => &reg::PIT.timer[1],
-            PITChannel::PIT2 => &reg::PIT.timer[2],
-            PITChannel::PIT3 => &reg::PIT.timer[3]
+            PITChannel::PIT0 => &regs::PIT().timer[0],
+            PITChannel::PIT1 => &regs::PIT().timer[1],
+            PITChannel::PIT2 => &regs::PIT().timer[2],
+            PITChannel::PIT3 => &regs::PIT().timer[3]
         }
     }
 }
 
-impl PIT {
+impl Pit {
     /// Setup a new PIT timer on a given channel.
-    pub fn new(channel: PITChannel) -> PIT {
-        reg::SIM.scgc6.set_pit(reg::Sim_scgc6_pit::ClockEnabled);
-        let pit = PIT {
+    pub fn new(channel: PITChannel) -> Pit {
+        regs::SIM().scgc6.set_pit(regs::Sim_scgc6_pit::ClockEnabled);
+        let pit = Pit {
             timer: channel.timer(),
             channel: channel
         };

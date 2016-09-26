@@ -21,7 +21,7 @@ use core::intrinsics::abort;
 
 use drivers::chario::CharIO;
 use hal::uart;
-use hal::k20::regs::reg::*;
+use hal::k20::regs::*;
 use hal::k20::pin::Pin;
 use hal::k20::pin::Port::*;
 use hal::k20::pin::Function::*;
@@ -54,8 +54,8 @@ pub enum UARTPinFunction {
 
 /// Structure describing a UART instance.
 #[derive(Clone, Copy)]
-pub struct UART {
-  reg: &'static reg::UART,
+pub struct Uart {
+  reg: &'static reg::Uart,
   peripheral: UARTPeripheral
 }
 
@@ -78,34 +78,34 @@ impl StopBit {
 }
 
 impl UARTPeripheral {
-  fn reg(self) -> &'static reg::UART {
+  fn reg(self) -> &'static reg::Uart {
     match self {
-      UART0 => &reg::UART0,
-      UART1 => &reg::UART1,
-      UART2 => &reg::UART2,
+      UART0 => &reg::UART0(),
+      UART1 => &reg::UART1(),
+      UART2 => &reg::UART2(),
     }
   }
 }
 
-impl UART {
+impl Uart {
   /// Returns platform-specific UART object that implements CharIO trait.
   pub fn new(peripheral: UARTPeripheral, baudrate:  u32, word_len: u8,
              parity: uart::Parity, stop_bits: u8,
-             rx_pin: Pin, tx_pin: Pin) -> UART {
-    let uart = UART {
+             rx_pin: Pin, tx_pin: Pin) -> Uart {
+    let uart = Uart {
       reg: peripheral.reg(),
       peripheral: peripheral,
     };
 
     // Enable Clock Gate for the UART
     match peripheral {
-      UART0 => {SIM.scgc4.set_uart0(Sim_scgc4_uart0::ClockEnabled);},
-      UART1 => {SIM.scgc4.set_uart1(Sim_scgc4_uart1::ClockEnabled);},
-      UART2 => {SIM.scgc4.set_uart2(Sim_scgc4_uart2::ClockEnabled);},
+      UART0 => {SIM().scgc4.set_uart0(Sim_scgc4_uart0::ClockEnabled);},
+      UART1 => {SIM().scgc4.set_uart1(Sim_scgc4_uart1::ClockEnabled);},
+      UART2 => {SIM().scgc4.set_uart2(Sim_scgc4_uart2::ClockEnabled);},
     }
     
     uart.set_baud_rate(baudrate);
-    uart.set_mode(reg::UART_c1_m::from_u8(word_len), parity, StopBit::from_u8(stop_bits));
+    uart.set_mode(reg::Uart_c1_m::from_u8(word_len), parity, StopBit::from_u8(stop_bits));
     uart.set_fifo_enabled(true);
 
     uart.init_pin(rx_pin, Rx);
@@ -129,14 +129,14 @@ impl UART {
     (*self.reg).c4.set_brfa(brfa as u8);
   }
 
-  fn set_mode(&self, word_len: reg::UART_c1_m, parity: uart::Parity,
+  fn set_mode(&self, word_len: reg::Uart_c1_m, parity: uart::Parity,
               _stop_bits: StopBit) {
     use hal::uart::Parity::*;
     let mut c1 = (*self.reg).c1.set_m(word_len);
     match parity {
       Disabled => {c1.set_pe(false);}
-      Odd      => {c1.set_pe(true).set_pt(reg::UART_c1_pt::Odd);}
-      Even     => {c1.set_pe(true).set_pt(reg::UART_c1_pt::Even);}
+      Odd      => {c1.set_pe(true).set_pt(reg::Uart_c1_pt::Odd);}
+      Even     => {c1.set_pe(true).set_pt(reg::Uart_c1_pt::Even);}
       Forced1  => unsafe { abort() },
       Forced0  => unsafe { abort() },
     };
@@ -178,7 +178,7 @@ impl UART {
   }
 }
 
-impl CharIO for UART {
+impl CharIO for Uart {
   fn putc(&self, value: char) {
     wait_for!(self.reg.s1.tdre());
     self.reg.d.set_re(value as u8);
@@ -187,7 +187,7 @@ impl CharIO for UART {
 
 use core::fmt::{Write, Result};
 
-impl Write for UART {
+impl Write for Uart {
     fn write_str(&mut self, s: &str) -> Result {
         for byte in s.bytes() {
             wait_for!(self.reg.s1.tdre());
@@ -204,7 +204,7 @@ pub mod reg {
   use core::ops::Drop;
   use core::intrinsics::abort;
 
-  ioregs!(UART = {
+  ioregs!(Uart = {
     0x0    => reg8 bdh {  //! baud rate high
       0..4  => sbr,       //= baud rate (high 5 bits)
       6     => rxedgie,   //= RxD input active edge interrupt enable
@@ -376,10 +376,10 @@ pub mod reg {
     // FIXME(bgamari): Specialized registers omitted
   });
 
-  impl UART_c1_m {
+  impl Uart_c1_m {
     /// UART data word length flag value from bit count
-    pub fn from_u8(val: u8) -> UART_c1_m {
-      use self::UART_c1_m::*;
+    pub fn from_u8(val: u8) -> Uart_c1_m {
+      use self::Uart_c1_m::*;
       match val {
         8 => DataBits8,
         9 => DataBits9,
@@ -388,9 +388,7 @@ pub mod reg {
     }
   }
 
-  extern {
-    #[link_name="k20_iomem_UART0"] pub static UART0: UART;
-    #[link_name="k20_iomem_UART1"] pub static UART1: UART;
-    #[link_name="k20_iomem_UART2"] pub static UART2: UART;
-  }
+  ioreg_assign!(k20_iomem_UART0, UART0, Uart);
+  ioreg_assign!(k20_iomem_UART1, UART1, Uart);
+  ioreg_assign!(k20_iomem_UART2, UART2, Uart);
 }

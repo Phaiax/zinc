@@ -24,10 +24,10 @@ Then we need some transceiver buffers. We can statically allocate some buffers f
 
  */
 
-use hal::k20::regs::reg;
-use hal::isr::isr_k20;
+//use hal::k20::regs;
+//use hal::isr::isr_k20;
 
-use util::support::nop;
+//use util::support::nop;
 
 use core::slice;
 use core::mem;

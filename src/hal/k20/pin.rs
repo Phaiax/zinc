@@ -23,7 +23,7 @@ on the package.
 use core::option::Option;
 use core::marker::Copy;
 
-use super::regs::reg::{SIM,Sim_scgc5_porta,Sim_scgc5_portb,Sim_scgc5_portc,Sim_scgc5_portd,Sim_scgc5_porte};
+use super::regs::{SIM,Sim_scgc5_porta,Sim_scgc5_portb,Sim_scgc5_portc,Sim_scgc5_portd,Sim_scgc5_porte};
 
 use self::Port::*;
 use self::Function::*;
@@ -109,11 +109,11 @@ impl Pin {
 
   fn enable_port_clock(&self) {
     match self.port {
-      PortA => SIM.scgc5.set_porta(Sim_scgc5_porta::ClockEnabled),
-      PortB => SIM.scgc5.set_portb(Sim_scgc5_portb::ClockEnabled),
-      PortC => SIM.scgc5.set_portc(Sim_scgc5_portc::ClockEnabled),
-      PortD => SIM.scgc5.set_portd(Sim_scgc5_portd::ClockEnabled),
-      PortE => SIM.scgc5.set_porte(Sim_scgc5_porte::ClockEnabled),
+      PortA => SIM().scgc5.set_porta(Sim_scgc5_porta::ClockEnabled),
+      PortB => SIM().scgc5.set_portb(Sim_scgc5_portb::ClockEnabled),
+      PortC => SIM().scgc5.set_portc(Sim_scgc5_portc::ClockEnabled),
+      PortD => SIM().scgc5.set_portd(Sim_scgc5_portd::ClockEnabled),
+      PortE => SIM().scgc5.set_porte(Sim_scgc5_porte::ClockEnabled),
     };
   }
 
@@ -157,21 +157,21 @@ impl Pin {
 
   fn gpioreg(&self) -> &'static reg::Gpio {
     match self.port {
-      PortA => &reg::GPIO_A,
-      PortB => &reg::GPIO_B,
-      PortC => &reg::GPIO_C,
-      PortD => &reg::GPIO_D,
-      PortE => &reg::GPIO_E,
+      PortA => &reg::GPIO_A(),
+      PortB => &reg::GPIO_B(),
+      PortC => &reg::GPIO_C(),
+      PortD => &reg::GPIO_D(),
+      PortE => &reg::GPIO_E(),
     }
   }
 
   fn pcr(&self) -> &'static reg::Port_pcr {
     let port: &reg::Port = match self.port {
-      PortA => &reg::PORT_A,
-      PortB => &reg::PORT_B,
-      PortC => &reg::PORT_C,
-      PortD => &reg::PORT_D,
-      PortE => &reg::PORT_E,
+      PortA => &reg::PORT_A(),
+      PortB => &reg::PORT_B(),
+      PortC => &reg::PORT_C(),
+      PortD => &reg::PORT_D(),
+      PortE => &reg::PORT_E(),
     };
     return &port.pcr[self.pin as usize];
   }
@@ -269,13 +269,11 @@ pub mod reg {
     }
   });
 
-  extern {
-    #[link_name="k20_iomem_PORTA"] pub static PORT_A: Port;
-    #[link_name="k20_iomem_PORTB"] pub static PORT_B: Port;
-    #[link_name="k20_iomem_PORTC"] pub static PORT_C: Port;
-    #[link_name="k20_iomem_PORTD"] pub static PORT_D: Port;
-    #[link_name="k20_iomem_PORTE"] pub static PORT_E: Port;
-  }
+  ioreg_assign!(k20_iomem_PORTA, PORT_A, Port);
+  ioreg_assign!(k20_iomem_PORTB, PORT_B, Port);
+  ioreg_assign!(k20_iomem_PORTC, PORT_C, Port);
+  ioreg_assign!(k20_iomem_PORTD, PORT_D, Port);
+  ioreg_assign!(k20_iomem_PORTE, PORT_E, Port);
 
   ioregs!(Gpio = {
     0x0     => reg32 pdo {  //! port data output register
@@ -306,11 +304,10 @@ pub mod reg {
     }
   });
 
-  extern {
-    #[link_name="k20_iomem_GPIOA"] pub static GPIO_A: Gpio;
-    #[link_name="k20_iomem_GPIOB"] pub static GPIO_B: Gpio;
-    #[link_name="k20_iomem_GPIOC"] pub static GPIO_C: Gpio;
-    #[link_name="k20_iomem_GPIOD"] pub static GPIO_D: Gpio;
-    #[link_name="k20_iomem_GPIOE"] pub static GPIO_E: Gpio;
-  }
+  ioreg_assign!(k20_iomem_GPIOA, GPIO_A, Gpio);
+  ioreg_assign!(k20_iomem_GPIOB, GPIO_B, Gpio);
+  ioreg_assign!(k20_iomem_GPIOC, GPIO_C, Gpio);
+  ioreg_assign!(k20_iomem_GPIOD, GPIO_D, Gpio);
+  ioreg_assign!(k20_iomem_GPIOE, GPIO_E, Gpio);
+  
 }

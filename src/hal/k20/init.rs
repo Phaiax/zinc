@@ -18,7 +18,7 @@ K20 Initialization utility functions
 */
 
 use hal::mem_init;
-use hal::k20::regs::reg::*;
+use hal::k20::regs::*;
 use hal::isr::isr_k20;
 
 use hal::k20::clocks;
@@ -33,14 +33,14 @@ pub fn startup(f_cpu: u32) {
     
     // SIM_SCGC3 = SIM_SCGC3_ADC1 | SIM_SCGC3_FTM2;
     // Turn on clock for FlexTimer2 and ADC1
-    //r SIM.scgc3
+    //r SIM().scgc3
     //r     .ignoring_state()
     //r     .set_ftm2(Sim_scgc3_ftm2::ClockEnabled)
     //r     .set_adc1(Sim_scgc3_adc1::ClockEnabled);
 
     // SIM_SCGC5 = 0x00043F82;		// clocks active to all GPIO
     // Turn on clock for all 5 ports (all GPIO)
-    //r SIM.scgc5
+    //r SIM().scgc5
     //r     .ignoring_state()
     //r     .set_porta(Sim_scgc5_porta::ClockEnabled)
     //r     .set_portb(Sim_scgc5_portb::ClockEnabled)
@@ -49,7 +49,7 @@ pub fn startup(f_cpu: u32) {
     //r     .set_porte(Sim_scgc5_porte::ClockEnabled);
     
     // SIM_SCGC6 = SIM_SCGC6_RTC | SIM_SCGC6_FTM0 | SIM_SCGC6_FTM1 | SIM_SCGC6_ADC0 | SIM_SCGC6_FTFL;
-    SIM.scgc6.ignoring_state()
+    SIM().scgc6.ignoring_state()
         .set_rtc(Sim_scgc6_rtc::Enabled)
     //r     .set_ftm0(Sim_scgc6_ftm0::ClockEnabled)
     //r     .set_ftm1(Sim_scgc6_ftm1::ClockEnabled)        
@@ -61,14 +61,14 @@ pub fn startup(f_cpu: u32) {
     
     // release I/O pins hold, if we woke up from VLLS mode
     // if (PMC_REGSC & PMC_REGSC_ACKISO) PMC_REGSC |= PMC_REGSC_ACKISO;
-    if PMC.regsc.ackiso() == Pmc_regsc_ackiso::Latched {
-        PMC.regsc.set_ackiso(Pmc_regsc_ackiso::Latched);
+    if PMC().regsc.ackiso() == Pmc_regsc_ackiso::Latched {
+        PMC().regsc.set_ackiso(Pmc_regsc_ackiso::Latched);
     }
 
     // since this is a write once register, make it visible to all F_CPU's
     // so we can into other sleep modes in the future at any speed
     // SMC_PMPROT = SMC_PMPROT_AVLP | SMC_PMPROT_ALLS | SMC_PMPROT_AVLLS;
-    SMC.pmprot.ignoring_state()
+    SMC().pmprot.ignoring_state()
         .set_avlp(Smc_pmprot_avlp::Allowed)
         .set_alls(Smc_pmprot_alls::Allowed)
         .set_avlls(Smc_pmprot_avlls::Allowed);
@@ -89,32 +89,32 @@ pub fn startup(f_cpu: u32) {
 
     // enable capacitors for crystal
     // OSC0_CR = OSC_SC8P | OSC_SC2P;
-    OSC.cr
+    OSC().cr
         .ignoring_state()
         .set_sc8p(true)
         .set_sc2p(true);
 
     // enable osc, 8-32 MHz range, low power mode
     // MCG_C2 = MCG_C2_RANGE0(2) | MCG_C2_EREFS;
-    MCG.c2
+    MCG().c2
         .ignoring_state()
         .set_range0(Mcg_c2_range0::VeryHigh)
         .set_erefs0(Mcg_c2_erefs0::Oscillator);
     // switch to crystal as clock source, FLL input = 16 MHz / 512
     // MCG_C1 =  MCG_C1_CLKS(2) | MCG_C1_FRDIV(4);
-    MCG.c1
+    MCG().c1
         .ignoring_state()
         .set_clks(Mcg_c1_clks::External)
         .set_frdiv(4);
     // wait for crystal oscillator to begin
     // while ((MCG_S & MCG_S_OSCINIT0) == 0) ;
-    wait_for!(MCG.status.oscinit0() == Mcg_status_oscinit0::Initialized);
+    wait_for!(MCG().status.oscinit0() == Mcg_status_oscinit0::Initialized);
 
     // while ((MCG_S & MCG_S_IREFST) != 0) ;
-    wait_for!(MCG.status.irefst() == Mcg_status_irefst::External);
+    wait_for!(MCG().status.irefst() == Mcg_status_irefst::External);
     // wait for MCGOUT to use oscillator
     // while ((MCG_S & MCG_S_CLKST_MASK) != MCG_S_CLKST(2)) ;
-    wait_for!(MCG.status.clkst() == Mcg_status_clkst::External);
+    wait_for!(MCG().status.clkst() == Mcg_status_clkst::External);
 
     // now in FBE mode
     //  C1[CLKS] bits are written to 10
@@ -130,7 +130,7 @@ pub fn startup(f_cpu: u32) {
     #endif
      */
     // config PLL input for 16 MHz Crystal / 4 = 4 MHz
-    MCG.c5.ignoring_state()
+    MCG().c5.ignoring_state()
         .set_prdiv0(3);
     /*
     #if F_CPU == 168000000
@@ -147,41 +147,41 @@ pub fn startup(f_cpu: u32) {
     #error "This clock speed isn't supported..."
     #endif
      */
-    MCG.c6.ignoring_state()
+    MCG().c6.ignoring_state()
         .set_plls(Mcg_c6_plls::PLL)
         .set_vdiv0(0);
     
     // wait for PLL to start using xtal as its input
     // while (!(MCG_S & MCG_S_PLLST)) ;
-    wait_for!(MCG.status.pllst() == Mcg_status_pllst::PLL);
+    wait_for!(MCG().status.pllst() == Mcg_status_pllst::PLL);
     // wait for PLL to lock
     // while (!(MCG_S & MCG_S_LOCK0)) ;
-    wait_for!(MCG.status.lock0() == Mcg_status_lock0::Locked);
+    wait_for!(MCG().status.lock0() == Mcg_status_lock0::Locked);
     // now we're in PBE mode
 
     // config divisors: 96 MHz core, 48 MHz bus, 24 MHz flash, USB = 96 / 2
     // SIM_CLKDIV1 = SIM_CLKDIV1_OUTDIV1(0) | SIM_CLKDIV1_OUTDIV2(1) | SIM_CLKDIV1_OUTDIV4(3);
-    SIM.clkdiv1.ignoring_state()
+    SIM().clkdiv1.ignoring_state()
         .set_outdiv1(0)
         .set_outdiv2(1)
         .set_outdiv4(3);
     // SIM_CLKDIV2 = SIM_CLKDIV2_USBDIV(1);
-    SIM.clkdiv2.ignoring_state()
+    SIM().clkdiv2.ignoring_state()
         .set_usbdiv(1);
     
     // switch to PLL as clock source, FLL input = 16 MHz / 512
     // MCG_C1 = MCG_C1_CLKS(0) | MCG_C1_FRDIV(4);
-    MCG.c1.ignoring_state()
+    MCG().c1.ignoring_state()
         .set_clks(Mcg_c1_clks::PLLS)
         .set_frdiv(4);
     // wait for PLL clock to be used
     //while ((MCG_S & MCG_S_CLKST_MASK) != MCG_S_CLKST(3)) ;
-    wait_for!(MCG.status.clkst() == Mcg_status_clkst::PLL);
+    wait_for!(MCG().status.clkst() == Mcg_status_clkst::PLL);
     // now we're in PEE mode
     // USB uses PLL clock, trace is CPU clock, CLKOUT=OSCERCLK0
     // SIM_SOPT2 = SIM_SOPT2_USBSRC | SIM_SOPT2_PLLFLLSEL | SIM_SOPT2_TRACECLKSEL
     //		| SIM_SOPT2_CLKOUTSEL(6);
-    SIM.sopt2.ignoring_state()
+    SIM().sopt2.ignoring_state()
         .set_usbsrc(Sim_sopt2_usbsrc::PllFll)
         .set_pllfllsel(Sim_sopt2_pllfllsel::Pll)
         .set_traceclksel(Sim_sopt2_traceclksel::SystemClock)

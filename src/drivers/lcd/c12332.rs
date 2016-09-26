@@ -24,7 +24,6 @@ might be an issue for any other peripheral sharing the same SPI bus.
 */
 
 use core::cell;
-use core::slice::SliceExt;
 use core::mem::zeroed;
 
 use super::font_small_7;
