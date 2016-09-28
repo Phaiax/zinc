@@ -13,14 +13,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub struct UsbConfig {
+use super::usbdescriptors::{DescriptorTree};
+use builder::BuilderConfig;
+use super::builder::MemoryConfig;
 
+pub struct UsbConfig {
+    descriptortree : DescriptorTree,
 }
 
 impl UsbConfig {
-    pub fn new() -> UsbConfig {
+    pub fn new(descriptortree : DescriptorTree) -> UsbConfig {
         UsbConfig {
+            descriptortree : descriptortree,
+        }
+    }
 
+    pub fn configure(&mut self, memory_config : &mut MemoryConfig) {
+
+    }
+
+    pub fn execute(&mut self, base_config : &mut BuilderConfig) {
+        let mut source = self.descriptortree.source();
+        for p in source.drain(..) {
+            base_config.add_src(p);
         }
     }
 }

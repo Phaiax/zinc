@@ -14,6 +14,8 @@
 // limitations under the License.
 
 pub mod usb;
+pub mod usbdescriptors;
+pub mod usbserial;
 pub mod linkerscript;
 pub mod builder;
 pub mod types;

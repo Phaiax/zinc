@@ -99,20 +99,25 @@ impl McuSpecificConfig {
                      self.mcu_parameters.supported_eeprom_backup_sizes());
             panic!("Chosen EEPRROM backup size is unsupported.");
         }
+        self.base_config.add_src("// init for EEPROM".into());
         self
     }
 
-    fn execute(&mut self) {
+    pub fn enable_usb(mut self, usb_config : UsbConfig) -> Self {
+        self.usb = Some(usb_config);
+        self
+    }
+
+    pub fn execute(&mut self) {
+        println!("Execute Specific config");
         if self.linker_script {
             write(&create_linker_script(&self), "Layout.ld").unwrap();
         }
-        println!("Execute Specific config");
+        if let Some(usb) = self.usb.as_mut() {
+            usb.configure(&mut self.memory_config);
+            usb.execute(&mut self.base_config);
+        }
+        self.base_config.execute();
     }
 }
 
-
-impl Drop for McuSpecificConfig {
-    fn drop(&mut self) {
-        self.execute();
-    }
-}

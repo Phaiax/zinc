@@ -24,6 +24,22 @@ use std::ops::{Add, Sub};
 /// , so relative paths are fine.
 pub fn write<P: AsRef<Path>>(data : &str, filename : P) -> Result<()> {
     let filename = filename.as_ref();
+    try!(create_dir_if_not_exists(filename));
+    let mut f = try!(File::create(filename));
+    f.write_all(data.as_bytes())
+}
+
+pub fn write_vec<P: AsRef<Path>>(data : &Vec<String>, filename : P) -> Result<()> {
+    let filename = filename.as_ref();
+    try!(create_dir_if_not_exists(filename));
+    let mut f = try!(File::create(filename));
+    for part in data.iter() {
+        try!(f.write_all(part.as_bytes()))
+    }
+    Ok(())
+}
+
+fn create_dir_if_not_exists(filename : &Path) -> Result<()> {
     if let Some(dir) = filename.parent() {
         if dir.to_string_lossy().len() > 0 {   
             if !dir.exists() {
@@ -34,8 +50,7 @@ pub fn write<P: AsRef<Path>>(data : &str, filename : P) -> Result<()> {
             }
         }
     }
-    let mut f = try!(File::create(filename));
-    f.write_all(data.as_bytes())
+    Ok(())
 }
 
 #[derive(Clone, Copy)]

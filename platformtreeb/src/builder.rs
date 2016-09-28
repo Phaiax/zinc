@@ -15,7 +15,7 @@
 
 use mcu::{McuSpecificConfig, get_target};
 use target::Target;
-use util::write;
+use util::{write, write_vec};
 
 #[derive(Clone, Copy)]
 pub enum McuClass {
@@ -36,7 +36,10 @@ pub struct BuilderConfig {
     target_json : bool,
     cargo_config : bool,
 
+    src_generated_rs : Vec<String>,
+
     called_mcu : bool,
+    executed : bool,
 }
 
 
@@ -51,7 +54,10 @@ impl BuilderConfig {
             target_json : true,
             cargo_config : true,
 
+            src_generated_rs : vec![],
+
             called_mcu : false,
+            executed : false,
         }
     }
 
@@ -74,7 +80,12 @@ impl BuilderConfig {
         McuSpecificConfig::new(self)
     }
 
-    fn execute(&mut self) {
+    pub fn add_src(&mut self, src : String) {
+        self.src_generated_rs.push(src);
+    }
+
+    pub fn execute(&mut self) {
+        self.executed = true;
         if self.target_json {
             println!("Write target_json");
             write(self.target.target_json(), self.target.target_json_filename()).unwrap();
@@ -82,6 +93,9 @@ impl BuilderConfig {
         if self.cargo_config {
             println!("Write cargo config");
             write(self.target.cargo_config(), ".cargo/config").unwrap();
+        }
+        if self.src_generated_rs.len() > 0 {
+            write_vec(&self.src_generated_rs, "src/generated.rs").unwrap();
         }
     }
 
@@ -92,6 +106,8 @@ impl Drop for BuilderConfig {
         if !self.called_mcu {
             panic!("You must call mcu() on the BuilderConfig instance in your build.rs file.")
         }
-        self.execute();
+        if !self.executed {
+            panic!("You must call execute() on the BuilderConfig or mcu() instance in your build.rs file.")
+        }
     }
 }
