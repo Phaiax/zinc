@@ -1,5 +1,6 @@
 // Zinc, the bare metal stack for rust.
-// Copyright 2016 Geoff Cant <nem@erlang.geek.nz>
+// Copyright 2016 Geoff Cant 'archaelus' <nem@erlang.geek.nz>
+// Copyright 2016 Daniel Seemer 'phaiax' <phaiax-zinc@invisibletower.de>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
