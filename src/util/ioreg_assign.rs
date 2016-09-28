@@ -19,7 +19,8 @@ macro_rules! ioreg_assign {
   ($linkname:ident, $name:ident, $regcls:ty) => (
 
     extern {
-      #[link_name="$linkname"]
+      //does not work, waiting for eager expansion #[link_name="stringify!($linkname)"]
+      #[no_mangle]
       pub static $linkname: $regcls ;
     }
 
