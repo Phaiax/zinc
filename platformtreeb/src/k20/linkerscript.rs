@@ -76,8 +76,9 @@ SECTIONS
         KEEP(*(.isr_vector_nvic))
     } > vectors = 0xff
 
-    .flashcfg ALIGN(4) :
+    .flashcfg :
     {
+        . =  ALIGN(4);
         KEEP(*(.flash_configuration))
     } > flash_config
 

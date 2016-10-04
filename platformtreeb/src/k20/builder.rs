@@ -20,6 +20,8 @@ use super::usb::UsbConfig;
 use super::linkerscript::create_linker_script;
 use super::types::McuParameters;
 use util::{Bytes, write};
+use std::path::PathBuf;
+use std::env;
 
 /// Some Microcontroller allow splitting the EEPROM 
 /// to allow two different endurance vs size tradeoffs
@@ -111,7 +113,10 @@ impl McuSpecificConfig {
     pub fn execute(&mut self) {
         println!("Execute Specific config");
         if self.linker_script {
-            write(&create_linker_script(&self), "Layout.ld").unwrap();
+            let mut out_dir : PathBuf = env::var("OUT_DIR").unwrap().into();
+            println!("cargo:rustc-link-search=native={}", out_dir.to_str().unwrap());
+            out_dir.push("layout.ld");
+            write(&create_linker_script(&self), out_dir).unwrap();
         }
         if let Some(usb) = self.usb.as_mut() {
             usb.configure(&mut self.memory_config);

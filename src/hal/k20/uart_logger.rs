@@ -26,12 +26,12 @@ use log::{LogRecord, LogLevelFilter, LogMetadata, LogLevel};
 use super::uart;
 use core::fmt::Write;
 
-static mut LOGGING_UART: Option<uart::UART> = None;
+static mut LOGGING_UART: Option<uart::Uart> = None;
 
 struct UartLogger;
 
 /// Initializes the log->UART system. The given UART must remain in a transmit-capable state after this point.
-pub fn init(uart: uart::UART) {
+pub fn init(uart: uart::Uart) {
     unsafe {
         LOGGING_UART = Some(uart);
         log::set_logger_raw(|max_log_level| {

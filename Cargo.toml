@@ -26,6 +26,8 @@ mcu_k20 = ["cpu_cortex-m4"]
 mcu_tiva_c = ["cpu_cortex-m4"]
 multitasking = ["cpu_cortex-m4"]
 
+loglib = ["log"]
+
 [target.thumbv6m-none-eabi.dependencies]
 rust-libcore = "*"
 
@@ -44,6 +46,12 @@ path = "./volatile_cell"
 [dependencies.rlibc]
 git = "https://github.com/hackndev/rlibc"
 branch = "zinc"
+
+[dependencies.log]
+git = "https://github.com/archaelus/log"
+branch = "zinc"
+default-features = false
+optional = true
 
 [dev-dependencies]
 expectest = "*"
