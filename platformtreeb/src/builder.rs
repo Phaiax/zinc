@@ -35,6 +35,7 @@ pub struct BuilderConfig {
 
     target_json : bool,
     cargo_config : bool,
+    user_startup_function : Option<String>,
 
     init_function : Option<InitFunction>,
     src_generated_rs : Vec<String>,
@@ -54,6 +55,7 @@ impl BuilderConfig {
 
             target_json : true,
             cargo_config : true,
+            user_startup_function : None,
 
             init_function : Some(InitFunction::default()),
             src_generated_rs : vec!["#![allow(dead_code)]\n".into()],
@@ -74,6 +76,15 @@ impl BuilderConfig {
 
     pub fn skip_adding_cargo_config(mut self) -> BuilderConfig {
         self.cargo_config = false;
+        self
+    }
+
+    /// Inserts a reset entry point (= `#[start] fn main(_,_);` ).
+    /// First calls the generated initialization routine (if any),
+    /// then calls the user statup routine `mod_and_name()`.
+    /// This requires you to add `#![feature(start)]` for your crate.
+    pub fn call_user_startup_function(mut self, mod_and_name : &str) -> BuilderConfig {
+        self.user_startup_function = Some(mod_and_name.into());
         self
     }
 
@@ -101,6 +112,21 @@ impl BuilderConfig {
         if self.cargo_config {
             println!("Write cargo config");
             write(self.target.cargo_config(), ".cargo/config").unwrap();
+        }
+        if let Some(ref mod_and_name) = self.user_startup_function {
+            self.src_generated_rs.push(format!("\nuse {} as user_entry_function;\n", mod_and_name));
+
+            self.src_generated_rs.push(r#"
+            #[start]
+            fn generated_start(_: isize, _: *const *const u8) -> isize {"#.into());
+            if self.init_function.is_some() {
+                self.src_generated_rs.push("\n\t\t\t\tstartup();".into());
+            }
+            self.src_generated_rs.push(r#"
+                user_entry_function();
+                0
+            }
+            "#.into());
         }
         if let Some(ref mut init_function) = self.init_function {
             self.src_generated_rs.append(&mut init_function.drain());

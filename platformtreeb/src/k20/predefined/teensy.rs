@@ -5,10 +5,13 @@ use builder::InitPart;
 pub fn teensy_configurator(s : &mut McuSpecificConfig) {
 
 
+    s.get_base_config_mut().add_to_init(InitPart::UseStatement, "\nuse zinc::hal::k20::watchdog;".into());
     s.get_base_config_mut().add_to_init(InitPart::UseStatement, "\nuse zinc::hal::k20::regs::*;".into());
     s.get_base_config_mut().add_to_init(InitPart::UseStatement, "\nuse zinc::hal::k20::clocks;".into());
     s.get_base_config_mut().add_to_init(InitPart::UseStatement, "\nuse zinc::hal::k20::rtc;".into());
     s.get_base_config_mut().add_to_init(InitPart::Pre, r#"
+        watchdog::init(watchdog::State::Disabled);
+
         SIM().scgc6.ignoring_state()
             .set_rtc(Sim_scgc6_rtc::Enabled)           // Allow access to RTC module
             .set_ftfl(Sim_scgc6_ftfl::ClockEnabled);   // Enable clock for flash memory
