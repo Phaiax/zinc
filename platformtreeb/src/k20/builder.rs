@@ -15,7 +15,7 @@
 
 //! Mcu specific config
 
-use builder::{BuilderConfig, McuType};
+use builder::{BuilderConfig};
 use super::usb::UsbConfig;
 use super::linkerscript::create_linker_script;
 use super::types::McuParameters;
@@ -50,10 +50,16 @@ pub struct MemoryConfig {
     pub usbdescriptortable_size : Bytes,
 }
 
+pub struct HardwareConfig {
+
+}
+
 pub struct McuSpecificConfig {
     base_config : BuilderConfig,
     mcu_parameters : McuParameters,
     memory_config : MemoryConfig,
+    #[allow(dead_code)]
+    hardware_config : HardwareConfig,
     usb : Option<UsbConfig>,
     linker_script : bool,
 }
@@ -70,17 +76,28 @@ impl McuSpecificConfig {
                 eeprom_backup_size : Bytes::b(0),
                 usbdescriptortable_size : Bytes::b(0),
             },
+            hardware_config : HardwareConfig {
+
+            },
             usb : None,
             linker_script : true,
         }
     }
 
+    pub fn get_base_config_mut(&mut self) -> &mut BuilderConfig { &mut self.base_config }
     pub fn get_base_config(&self) -> &BuilderConfig { &self.base_config }
     pub fn get_mcu_parameters(&self) -> &McuParameters { &self.mcu_parameters }
     pub fn get_memory_config(&self) -> &MemoryConfig { &self.memory_config }
+    pub fn get_memory_config_mut(&mut self) -> &mut MemoryConfig { &mut self.memory_config }
     pub fn get_e_flash_size(&self) -> Bytes {
         Bytes::b(self.mcu_parameters.get_flexnvm_size().0
          - self.memory_config.eeprom_backup_size.0)
+    }
+
+    pub fn with<F>(mut self, config_function : F) -> Self
+        where F : FnOnce(&mut McuSpecificConfig) {
+        config_function(&mut self);
+        self
     }
 
     pub fn set_eeprom(mut self, eeprom_size : Bytes,

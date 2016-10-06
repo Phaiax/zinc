@@ -13,11 +13,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![feature(asm, lang_items, plugin)]
+#![feature(asm, lang_items, plugin, macro_reexport)]
 #![feature(core_intrinsics, core_slice_ext)]
-#![allow(improper_ctypes)]
 #![feature(const_fn, concat_idents)]
+#![allow(improper_ctypes)]
 #![deny(missing_docs)]
+#![plugin(ioreg)]
 #![no_std]
 
 /*!
@@ -47,7 +48,6 @@ A number of are supported at the moment, specifically
 The code is generic enough to support other MCUs in the same family (LPC17xx and
 STM32F403/407).
 */
-#![plugin(ioreg)]
 
 #[cfg(target_os = "none")]
 extern crate rlibc;
@@ -59,7 +59,12 @@ extern crate rlibc;
 
 #[cfg(test)] #[macro_use(expect)] extern crate expectest;
 
-#[cfg(feature = "loglib")] #[macro_use] pub extern crate log;
+#[cfg(feature = "loglib")]
+#[macro_use]
+#[macro_reexport(info,log,debug,error,trace,warn)]
+pub extern crate log;
+#[cfg(feature = "loglib")]
+pub use log::*;
 
 #[macro_use] pub mod util;
 

@@ -144,7 +144,10 @@ impl Uart {
   }
 
   fn set_fifo_enabled(&self, enabled: bool) {
-    (*(self.reg)).pfifo.set_rxfe(enabled).set_txfe(enabled);
+    (*self.reg).twfifo.set_txwater(2);
+    (*self.reg).rwfifo.set_rxwater(4);
+    (*self.reg).pfifo.set_rxfe(enabled)
+                     .set_txfe(enabled);
   }
 
   fn init_pin(&self, pin: Pin, function: UARTPinFunction) {

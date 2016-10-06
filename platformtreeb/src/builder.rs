@@ -36,6 +36,7 @@ pub struct BuilderConfig {
     target_json : bool,
     cargo_config : bool,
 
+    init_function : Option<InitFunction>,
     src_generated_rs : Vec<String>,
 
     called_mcu : bool,
@@ -54,7 +55,8 @@ impl BuilderConfig {
             target_json : true,
             cargo_config : true,
 
-            src_generated_rs : vec![],
+            init_function : Some(InitFunction::default()),
+            src_generated_rs : vec!["#![allow(dead_code)]\n".into()],
 
             called_mcu : false,
             executed : false,
@@ -84,6 +86,12 @@ impl BuilderConfig {
         self.src_generated_rs.push(src);
     }
 
+    pub fn add_to_init(&mut self, part : InitPart, code : String) {
+        if let Some(ref mut init_function) = self.init_function {
+            init_function.add(part, code);
+        }
+    }
+
     pub fn execute(&mut self) {
         self.executed = true;
         if self.target_json {
@@ -93,6 +101,9 @@ impl BuilderConfig {
         if self.cargo_config {
             println!("Write cargo config");
             write(self.target.cargo_config(), ".cargo/config").unwrap();
+        }
+        if let Some(ref mut init_function) = self.init_function {
+            self.src_generated_rs.append(&mut init_function.drain());
         }
         if self.src_generated_rs.len() > 0 {
             write_vec(&self.src_generated_rs, "src/generated.rs").unwrap();
@@ -111,3 +122,69 @@ impl Drop for BuilderConfig {
         }
     }
 }
+
+pub enum InitPart {
+    UseStatement,
+    Pre,
+    Main,
+    Post
+}
+
+pub struct InitFunction{
+    usestatements : Vec<String>,
+    function_pre : Vec<String>,
+    function_main : Vec<String>,
+    function_post : Vec<String>,
+}
+
+impl InitFunction {
+    pub fn empty() -> InitFunction {
+        InitFunction {
+            usestatements : vec![],
+            function_pre : vec![],
+            function_main : vec![],
+            function_post : vec![],
+        }
+    }
+
+    pub fn default() -> InitFunction {
+        let mut new = Self::empty();
+        new.add(InitPart::Pre, r#"
+        mem_init::init_stack();
+        mem_init::init_data();
+        "#.into());
+        new.add(InitPart::UseStatement, "\n\nuse zinc::hal::mem_init;".into());
+        new
+    }
+
+    pub fn add(&mut self, part : InitPart, code : String) {
+        match part {
+            InitPart::UseStatement => self.usestatements.push(code),
+            InitPart::Pre => self.function_pre.push(code),
+            InitPart::Main => self.function_main.push(code),
+            InitPart::Post => self.function_post.push(code),
+        }
+    }
+
+    fn drain(&mut self) -> Vec<String> {
+        let mut combined = vec![];
+        combined.append(&mut self.usestatements);
+        combined.push(FUNCTION_HEADER.into());
+        combined.append(&mut self.function_pre);
+        combined.append(&mut self.function_main);
+        combined.append(&mut self.function_post);
+        combined.push(FUNCTION_FOOTER.into());
+        combined
+    }
+}
+
+const FUNCTION_HEADER : &'static str =   r#"
+
+#[inline(always)]
+pub fn startup() {
+"#;
+
+const FUNCTION_FOOTER : &'static str =   r#"
+}
+
+"#;

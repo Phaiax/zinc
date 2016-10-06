@@ -28,7 +28,7 @@ impl UsbConfig {
         }
     }
 
-    pub fn configure(&mut self, memory_config : &mut MemoryConfig) {
+    pub fn configure(&mut self, _ : &mut MemoryConfig) {
 
     }
 

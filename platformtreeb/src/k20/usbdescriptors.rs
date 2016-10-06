@@ -266,7 +266,7 @@ pub struct DeviceDescriptor {
 impl DeviceDescriptor {
     pub fn source(&self) -> String {
         format!(r#"
-    const DEVICEDESCRIPTOR: &'static [u8] = [
+    const DEVICEDESCRIPTOR: &'static [u8] = &[
         0x{bLength:x},      // bLength
         0x{bDescriptorType:x},      // bDescriptorType
         0x{bcdUSB_LSB:x}, 0x{bcdUSB_MSB:x},// bcdUSB
@@ -452,7 +452,7 @@ impl StringDescriptorZero {
     pub fn len(&self) -> u8 { (2 + self.wLANGID.len() * 2) as u8 }
     pub fn source(&self) -> String {
         let mut s = format!(r#"
-    const STRINGZERODESCRIPTOR: &'static [u8] = [
+    const STRINGZERODESCRIPTOR: &'static [u8] = &[
         0x{bLength:x},      // bLength
         0x{bDescriptorType:x},      // bDescriptorType
         "#,
@@ -485,7 +485,7 @@ impl StringDescriptor {
     pub fn len(&self) -> u8 { (2 + self.bString.as_bytes().len()) as u8 }
     pub fn source(&self) -> String {
         let mut s = format!(r#"
-    const STRING_{}_DESCRIPTOR: &'static [u8] = [
+    const STRING_{}_DESCRIPTOR: &'static [u8] = &[
         0x{bLength:x},      // bLength
         0x{bDescriptorType:x},      // bDescriptorType
         // {bString}
@@ -539,7 +539,7 @@ impl DescriptorTree {
 
         let mut source = vec![];
         if let Some(configdescr) = self.device.configurations.iter().next() {
-            source.push("\n    const CONFIGDESCRIPTORTREE: &'static [u8] = [".into());
+            source.push("\n    const CONFIGDESCRIPTORTREE: &'static [u8] = &[".into());
             source.push(configdescr.source());
             for interfacedescr in configdescr.interfaces.iter() {
                 source.push(interfacedescr.source());
@@ -572,7 +572,7 @@ impl DescriptorTree {
         if strings.len() > 254 {
             panic!("UsbDescriptor : too much strings");
         }
-        let mut newdescr = StringDescriptor::new(&i_string.1, (strings.len() + 1) as u8);
+        let newdescr = StringDescriptor::new(&i_string.1, (strings.len() + 1) as u8);
         i_string.0 = newdescr.id;
         strings.push(newdescr);
     }

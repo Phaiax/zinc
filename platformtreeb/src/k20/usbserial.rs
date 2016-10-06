@@ -15,7 +15,7 @@
 
 use super::usbdescriptors::{DescriptorTree, ConfigurationDescriptor, DeviceDescriptor,
     DeviceClass, MaxPacketSizeEP0, Bcd, StringId, ConfAttributes, MaxCurrent, BcdUsb,
-    InterfaceDescriptor, EndpointDescriptor, EndpointAddress, EndpointAttributes,
+    InterfaceDescriptor, EndpointDescriptor, EndpointAddress,
     TransferType, CDCDescriptor, CDCDescriptorSubTypes};
 
 

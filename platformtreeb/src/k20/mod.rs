@@ -19,6 +19,7 @@ pub mod usbserial;
 pub mod linkerscript;
 pub mod builder;
 pub mod types;
+pub mod predefined;
 pub use self::builder::EEESplit;
 
 use target::Target;
