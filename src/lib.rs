@@ -13,9 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![cfg_attr(target_arch = "arm", feature(core_intrinsics))]
 #![feature(asm, lang_items, plugin, macro_reexport)]
-#![feature(core_intrinsics, core_slice_ext)]
 #![feature(const_fn, concat_idents)]
+#![feature(compiler_builtins_lib)]
 #![allow(improper_ctypes)]
 #![deny(missing_docs)]
 #![plugin(ioreg)]
@@ -51,6 +52,8 @@ STM32F403/407).
 
 #[cfg(target_os = "none")]
 extern crate rlibc;
+
+extern crate compiler_builtins;
 
 #[macro_use] #[no_link] extern crate ioreg;
 #[macro_use] extern crate volatile_cell;

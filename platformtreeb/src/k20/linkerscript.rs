@@ -23,7 +23,7 @@ pub fn create_linker_script(m : &McuSpecificConfig) -> String {
     template.replace("{{ pflashsize }}", &m.get_mcu_parameters().get_program_flash_size().str());
     template.replace("{{ sramsize }}", &m.get_mcu_parameters().get_sram_size().str());
     template.replace("{{ eflashsize }}", &m.get_e_flash_size().str());
-    
+
     if m.get_memory_config().usbdescriptortable_size.0 > 0 {
         template.replace("/* {{ usbdescriptortable }} */", r#"
             .usbdescriptortable (NOLOAD) : ALIGN(512) {
@@ -44,7 +44,6 @@ const LINKERSCRIPTTEMPLATE: &'static str = r#"
 __aeabi_unwind_cpp_pr0 = abort;
 __aeabi_unwind_cpp_pr1 = abort;
 __aeabi_unwind_cpp_pr2 = abort;
-__aeabi_memclr4 = __aeabi_memclr;
 
 _data_load = LOADADDR(.data);
 

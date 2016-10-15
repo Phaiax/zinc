@@ -22,7 +22,7 @@ use syntax::ext::base::{ExtCtxt, DummyResolver};
 use syntax::ext::expand::ExpansionConfig;
 use syntax::ext::quote::rt::ExtParseUtils;
 use syntax::errors::emitter::Emitter;
-use syntax::errors::{RenderSpan, Level, Handler, DiagnosticBuilder};
+use syntax::errors::{Handler, DiagnosticBuilder};
 use syntax::parse::ParseSess;
 use syntax::print::pprust;
 

@@ -27,8 +27,8 @@ if [ "$PLATFORM" == "native" ]; then
     support/fixcov.py src/ cov/zinc-????????????????/cobertura.xml
     kcov cov/ ioreg/target/debug/test-*
     support/fixcov.py ioreg/src/ cov/test-????????????????/cobertura.xml
-    kcov cov/ platformtree/target/debug/platformtree-*
-    support/fixcov.py platformtree/src/ cov/platformtree-????????????????/cobertura.xml
+    #kcov cov/ platformtree/target/debug/platformtree-*
+    #support/fixcov.py platformtree/src/ cov/platformtree-????????????????/cobertura.xml
   fi
 
 else
@@ -60,11 +60,11 @@ else
       ;;
   esac
 
-  cargo build --target=$TARGET --verbose --features "mcu_$PLATFORM" --lib
+  xargo build --target=$TARGET --verbose --features "mcu_$PLATFORM" --lib
 
   for e in $EXAMPLES; do
     pushd "examples/$e"
-    cargo build --target=$TARGET --verbose --features "mcu_$PLATFORM" --release
+    xargo build --target=$TARGET --verbose --features "mcu_$PLATFORM" --release
     popd
   done
 fi

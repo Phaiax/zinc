@@ -1616,6 +1616,13 @@ impl<'a> Usb_errstat_Update<'a> {
         self.mask = 0xFF;
         self
     }
+    /// Clears the flags set in `raw`
+    #[inline(always)]
+    pub fn clear_raw<'b>(&'b mut self, raw : u8) -> &'b mut Usb_errstat_Update<'a> {
+        self.value = raw;
+        self.mask = raw;
+        self
+    }
 }
 
 impl<'a> Usb_otgistat_Update<'a> {

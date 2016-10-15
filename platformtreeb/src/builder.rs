@@ -33,7 +33,6 @@ pub struct BuilderConfig {
     mcu_type : McuType,
     target : Target,
 
-    target_json : bool,
     cargo_config : bool,
     user_startup_function : Option<String>,
 
@@ -53,7 +52,6 @@ impl BuilderConfig {
             mcu_type : mcu_type,
             target : get_target(),
 
-            target_json : true,
             cargo_config : true,
             user_startup_function : None,
 
@@ -68,11 +66,6 @@ impl BuilderConfig {
     pub fn get_mcu_class(&self) -> McuClass { self.mcu_class }
     pub fn get_mcu_type(&self) -> McuType { self.mcu_type }
     pub fn get_target(&self) -> Target { self.target }
-
-    pub fn skip_adding_target_json(mut self) -> BuilderConfig {
-        self.target_json = false;
-        self
-    }
 
     pub fn skip_adding_cargo_config(mut self) -> BuilderConfig {
         self.cargo_config = false;
@@ -105,10 +98,6 @@ impl BuilderConfig {
 
     pub fn execute(&mut self) {
         self.executed = true;
-        if self.target_json {
-            println!("Write target_json");
-            write(self.target.target_json(), self.target.target_json_filename()).unwrap();
-        }
         if self.cargo_config {
             println!("Write cargo config");
             write(self.target.cargo_config(), ".cargo/config").unwrap();

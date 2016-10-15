@@ -28,28 +28,23 @@ multitasking = ["cpu_cortex-m4"]
 
 loglib = ["log"]
 
-[target.thumbv6m-none-eabi.dependencies]
-rust-libcore = "*"
-
-[target.thumbv7m-none-eabi.dependencies]
-rust-libcore = "*"
-
-[target.thumbv7em-none-eabi.dependencies]
-rust-libcore = "*"
-
 [dependencies.ioreg]
 path = "./ioreg"
 
 [dependencies.volatile_cell]
 path = "./volatile_cell"
 
-[dependencies.rlibc]
-git = "https://github.com/hackndev/rlibc"
-branch = "zinc"
+
+[dependencies]
+rlibc = "1.0"
+
+[dependencies.compiler_builtins]
+git = "https://github.com/Phaiax/compiler-builtins"
+branch = "gccdeptogit"
+features = ["c"]
 
 [dependencies.log]
-git = "https://github.com/archaelus/log"
-branch = "zinc"
+version = "*"
 default-features = false
 optional = true
 

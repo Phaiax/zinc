@@ -157,6 +157,7 @@ fn build_args(builder: &mut Builder, cx: &mut ExtCtxt,
     let typaram = cx.typaram(
         DUMMY_SP,
         cx.ident_of(ty.to_tyhash().as_str()),
+        vec![],
         P::from_vec(vec!(
           ast::RegionTyParamBound(cx.lifetime(DUMMY_SP, intern("'a")))
         )),
@@ -173,7 +174,7 @@ fn build_args(builder: &mut Builder, cx: &mut ExtCtxt,
     node: ast::ItemKind::Struct(
       ast::VariantData::Struct(fields, ast::DUMMY_NODE_ID),
       ast::Generics {
-        lifetimes: vec!(cx.lifetime_def(DUMMY_SP, intern("'a"), vec!())),
+        lifetimes: vec!(cx.lifetime_def(DUMMY_SP, intern("'a"), vec![], vec!())),
         ty_params: P::from_vec(collected_params),
         where_clause: ast::WhereClause {
           id: ast::DUMMY_NODE_ID,

@@ -98,7 +98,7 @@ fn reg_struct_type(cx: &ExtCtxt, path: &Vec<String>, reg: &node::Reg)
     1 => base_ty,
     n =>
       cx.ty(reg.count.span,
-            ast::TyKind::FixedLengthVec(base_ty, expr_usize(cx, respan(reg.count.span, n as u64)))),
+            ast::TyKind::Array(base_ty, expr_usize(cx, respan(reg.count.span, n as u64)))),
   }
 }
 
@@ -146,7 +146,7 @@ impl<'a, 'b> BuildUnionTypes<'a, 'b> {
         let ty: P<ast::Ty> =
           self.cx.ty(
             DUMMY_SP,
-            ast::TyKind::FixedLengthVec(u8_ty, expr_usize(self.cx, respan(DUMMY_SP, length))));
+            ast::TyKind::Array(u8_ty, expr_usize(self.cx, respan(DUMMY_SP, length))));
         ast::StructField {
           span: DUMMY_SP,
           ident: Some(self.cx.ident_of(format!("_pad{}", index).as_str())),

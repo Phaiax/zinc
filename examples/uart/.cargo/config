@@ -1,2 +1,4 @@
 [build]
 target = "thumbv7m-none-eabi"
+linker = "arm-none-eabi-gcc"
+ar = "arm-none-eabi-ar"

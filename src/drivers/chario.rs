@@ -15,7 +15,6 @@
 
 //! Generic char output trait.
 
-use core::slice::SliceExt;
 use core::convert::AsRef;
 
 use core::mem::zeroed;

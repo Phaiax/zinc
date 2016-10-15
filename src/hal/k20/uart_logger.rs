@@ -26,7 +26,8 @@ use log::{LogRecord, LogLevelFilter, LogMetadata, LogLevel};
 use super::uart;
 use core::fmt::Write;
 
-static mut LOGGING_UART: Option<uart::Uart> = None;
+/// f
+pub static mut LOGGING_UART: Option<uart::Uart> = None;
 
 struct UartLogger;
 

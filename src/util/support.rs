@@ -26,26 +26,6 @@ pub extern fn abort() -> ! {
   loop {}
 }
 
-// TODO(bgamari): This is only necessary for exception handling and
-// can be removed when we have this issue resolved.
-#[doc(hidden)]
-#[no_mangle]
-pub extern fn __aeabi_memset(dest: *mut u8, size: usize, value: u32) {
-  unsafe {
-    use core::intrinsics::volatile_set_memory;
-    volatile_set_memory(dest, value as u8, size);
-  }
-}
-
-#[doc(hidden)]
-#[no_mangle]
-pub extern fn __aeabi_memclr(dest: *mut u8, size: usize) {
-  unsafe {
-    use core::intrinsics::volatile_set_memory;
-    volatile_set_memory(dest, 0, size);
-  }
-}
-
 #[cfg(target_arch = "arm")]
 #[inline(always)]
 /// NOP instruction

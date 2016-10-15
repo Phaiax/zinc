@@ -66,19 +66,20 @@ Zinc is distributed under Apache-2.0, see LICENSE for more details.
 ### Environment Setup
 
 For the time being, Zinc makes use unstable features of the Rust
-language.  As such, we recommend using the latest nightly version of
-Rust for development.  As features of the language stabilize over
+language.  As such, we recommend using the nightly version of
+Rust mentioned below for development.
+As features of the language stabilize over
 time, it is the goal of Zinc to eventually be able to target stable
 versions of the compiler.
 [rustup.rs](https://www.rustup.rs/) may be used to manage
 installations of multiple versions of rust on single machine.
 
-The currently supported Rust version is nightly-2016-09-17.  To install
+The currently supported Rust version is nightly-2016-10-14. To install
 it with rustup use the following:
 
 ```Shell
-rustup install nightly-2016-09-17
-rustup override set nightly-2016-09-17
+rustup install nightly-2016-10-14
+rustup override set nightly-2016-10-14
 ```
 
 In addition to rust itself, a GCC cross-toolchain for ARM must be
@@ -87,18 +88,24 @@ GCC Linker is still used at this time.  The
 [GCCM ARM Embedded toolchain](https://launchpad.net/gcc-arm-embedded/+download)
 works well for most people.
 
+The rust language team is currently mixing up things that belong to cross compiling. Keep an eye out here for future changes. For now you need to use [Xargo](https://github.com/japaric/xargo) instead of Cargo.
+
+```Shell
+cargo install xargo
+```
+
+Note: The previously needed .json files for the thumb targets are now part of the rust compiler. You can delete it. You also need to get rid of any `rust-libcore` mentions in any Cargo.toml files, including dependencies. Otherwise you will get a lot of these errors: `duplicate lang item in crate \`core\`: \`const_ptr\`.`
+
 ### Building Examples Within Zinc
 
 There are several examples available within the Zinc source itself.
-Zinc makes use of Cargo for its build system, but it is still necesary
+Zinc makes use of Cargo/Xargo for its build system, but it is still necesary
 to provide the build system with a few pieces of information for it to
 properly compile for your target.
 
 Namely, cargo must know about and have access to:
 
-1. The target specification for the machine being specified (consumed
-   by the compiler)
-2. A feature telling the code what platform is being targetted.  These
+1. A feature telling the code what platform is being targetted.  These
    features are defined in the form `mcu_<platform>`.
 
 Suppose we are targetting the `k20` platform.  In that case, I could
@@ -108,22 +115,23 @@ platforms to targets.
 
 ```
 $ cd examples/blink_k20
-$ ln -s ../../thumbv7em-none-eabi.json
-$ cargo build --target=thumbv7em-none-eabi --features mcu_k20 --release
+$ xcargo build --target=thumbv7em-none-eabi --features mcu_k20 --release
 
 $ file target/thumbv7em-none-eabi/release/blink
 target/thumbv7em-none-eabi/release/blink: ELF 32-bit LSB executable, ARM, EABI5 version 1 (SYSV), statically linked, not stripped
 ```
 
 If you receive link errors, you probably need to tell Cargo to use
-your cross-compilers linker.  You can do this by adding a
-`.cargo/config` to either your home directory or the root of the Zinc
-project:
+the correct linker file. (This was previously defined in the target.json)  You can do this by adding a `.cargo/config` to either your home directory or the root of the Zinc project:
 
 ```toml
 [target.thumbv7em-none-eabi]
 linker = "arm-none-eabi-gcc"
 ar = "arm-none-eabi-ar"
+rustflags = [
+    "-C",
+    "link-arg=-Tlayout.ld",
+]
 ```
 
 ### Using Zinc for your Project
@@ -132,7 +140,7 @@ Sinc Zinc uses cargo for its build system, using Zinc from your own
 project just requires setting up your Cargo.toml correctly.
 
 You can find an example of how to do that here:
-https://github.com/posborne/zinc-example-lpc1768
+https://github.com/posborne/zinc-example-lpc1768 (currently outdated)
 
 ### Contacting developers
 

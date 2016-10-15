@@ -18,7 +18,8 @@ use syntax::codemap::DUMMY_SP;
 use syntax::ext::base::ExtCtxt;
 use syntax::ext::build::AstBuilder;
 use syntax::parse::token::{InternedString, intern_and_get_ident};
-use std::hash::{Hash, Hasher, SipHasher};
+use std::hash::{Hash, Hasher};
+use std::collections::hash_map::DefaultHasher;
 
 static TAG: &'static str = "__zinc_task_ty_params";
 
@@ -28,7 +29,7 @@ pub trait ToTyHash {
 
 impl ToTyHash for String {
   fn to_tyhash(&self) -> String {
-    let mut s = SipHasher::new();
+    let mut s = DefaultHasher::new();
     self.hash(&mut s);
     let h: u64 = s.finish();
     format!("Ty{:X}", h)

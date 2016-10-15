@@ -86,6 +86,7 @@ fn macro_zinc_task_item(cx: &mut ExtCtxt, it: P<ast::Item>) -> P<ast::Item> {
         cx.typaram(
             DUMMY_SP,
             cx.ident_of(ty.to_tyhash().as_str()),
+            vec![],
             P::from_vec(vec!(cx.typarambound(
                 cx.path(DUMMY_SP, ty.as_str().split("::").map(|t| cx.ident_of(t)).collect())))),
             None)
