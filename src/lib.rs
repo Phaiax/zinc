@@ -14,7 +14,7 @@
 // limitations under the License.
 
 #![cfg_attr(target_arch = "arm", feature(core_intrinsics))]
-#![feature(asm, lang_items, plugin, macro_reexport)]
+#![feature(asm, lang_items, linkage, plugin, macro_reexport)]
 #![feature(const_fn, concat_idents)]
 #![feature(compiler_builtins_lib)]
 #![allow(improper_ctypes)]

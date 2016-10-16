@@ -25,6 +25,7 @@ use log::{LogRecord, LogLevelFilter, LogMetadata, LogLevel};
 
 use super::uart;
 use core::fmt::Write;
+use core::fmt::Arguments;
 
 /// f
 pub static mut LOGGING_UART: Option<uart::Uart> = None;
@@ -71,4 +72,11 @@ impl log::Log for UartLogger {
             }
         }
     }
+}
+
+#[cfg(all(not(test), not(feature = "test")))]
+#[lang="panic_fmt"]
+extern "C" fn panic_fmt(msg: Arguments, file: &'static str, line: u32) -> ! {
+    error!(target: "PANIC! ", "{} ({}:{})", msg, file, line);
+    loop {}
 }

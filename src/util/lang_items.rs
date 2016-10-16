@@ -13,15 +13,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[cfg(all(not(test), not(feature = "test")))]
+#[cfg(all(not(test), not(feature = "test"), not(feature = "loglib")))]
 use core::fmt::Arguments;
 
 #[cfg(all(not(test), not(feature = "test")))]
 #[lang="eh_personality"]
 extern fn eh_personality() {}
 
-#[cfg(all(not(test), not(feature = "test")))]
+#[cfg(all(not(test), not(feature = "test"), not(feature = "loglib")))]
 #[lang="panic_fmt"]
+#[linkage = "weak"]
 pub fn panic_fmt(_fmt: &Arguments, _file_line: &(&'static str, usize)) -> ! {
   loop { }
 }
