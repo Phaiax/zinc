@@ -52,19 +52,19 @@ impl log::Log for UartLogger {
         if let &mut Some(ref mut uart) = unsafe { &mut LOGGING_UART } {
             match (record.level(), super::rtc::time()) {
                 (LogLevel::Info, None) => {
-                    let _ = writeln!(uart, "\r\n{} - {}",
+                    let _ = write!(uart, "\r\n{} - {}",
                                      record.level(), record.args());
                 },
                 (level, None) => {
                     let line = record.location().line();
                     let file = record.location().file();
-                    let _ = writeln!(uart, "\r\n{} {}:{} - {}",
+                    let _ = write!(uart, "\r\n{} {}:{} - {}",
                                      level, file, line, record.args());
                 },
                 (level, Some(time)) => {
-                    let _ = writeln!(uart, "\r\n[{time:>9}] {level} {module}:{line} - {args}",
+                    let _ = write!(uart, "\r\n[{time:>9}] {level:5} {module}:{line} - {args}",
                                      time = time, level = level,
-                                     module = record.location().module_path(),
+                                     module = record.target(),
                                      line = record.location().line(),
                                      args = record.args());
                 }
