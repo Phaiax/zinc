@@ -16,6 +16,8 @@
 use mcu::{McuSpecificConfig, get_target};
 use target::Target;
 use util::{write, write_vec};
+use std::borrow::Cow;
+use std::collections::HashMap;
 
 #[derive(Clone, Copy)]
 pub enum McuClass {
@@ -90,9 +92,15 @@ impl BuilderConfig {
         self.src_generated_rs.push(src);
     }
 
-    pub fn add_to_init(&mut self, part : InitPart, code : String) {
+    pub fn add_to_init<'a, T:Into<Cow<'a, str>>>(&mut self, part : InitPart, code : T) {
         if let Some(ref mut init_function) = self.init_function {
             init_function.add(part, code);
+        }
+    }
+
+    pub fn usetype_in_init<'a, T:Into<Cow<'a, str>>>(&mut self, code : T) {
+        if let Some(ref mut init_function) = self.init_function {
+            init_function.usetype(code);
         }
     }
 
@@ -103,19 +111,14 @@ impl BuilderConfig {
             write(self.target.cargo_config(), ".cargo/config").unwrap();
         }
         if let Some(ref mod_and_name) = self.user_startup_function {
-            self.src_generated_rs.push(format!("\nuse {} as user_entry_function;\n", mod_and_name));
+            self.src_generated_rs.push(format!("\n\n\tuse {} as user_entry_function;\n", mod_and_name));
 
-            self.src_generated_rs.push(r#"
-            #[start]
-            fn generated_start(_: isize, _: *const *const u8) -> isize {"#.into());
+            self.src_generated_rs.push("\n\t#[start]".into());
+            self.src_generated_rs.push("\n\tfn generated_start(_: isize, _: *const *const u8) -> isize {".into());
             if self.init_function.is_some() {
-                self.src_generated_rs.push("\n\t\t\t\tstartup();".into());
+                self.src_generated_rs.push("\n\t\tstartup();".into());
             }
-            self.src_generated_rs.push(r#"
-                user_entry_function();
-                0
-            }
-            "#.into());
+            self.src_generated_rs.push("\n\t\tuser_entry_function();\n\t\t0\n\t}\n".into());
         }
         if let Some(ref mut init_function) = self.init_function {
             self.src_generated_rs.append(&mut init_function.drain());
@@ -138,56 +141,65 @@ impl Drop for BuilderConfig {
     }
 }
 
+#[repr(usize)]
 pub enum InitPart {
-    UseStatement,
-    Pre,
-    Main,
-    Post
+    /// e.g. Disable watchdog
+    Pos00Earliest = 0,
+    /// e.g. Init static memory
+    Pos05Early = 5,
+    /// Setup clocks
+    Pos10Early = 10,
+    /// Setup peripherals
+    Pos40Main = 40,
+    /// Setup other stuff
+    Pos60Late = 60,
+    /// Init drivers for user startup function
+    Pos80Usr = 80,
 }
 
 pub struct InitFunction{
     usestatements : Vec<String>,
-    function_pre : Vec<String>,
-    function_main : Vec<String>,
-    function_post : Vec<String>,
+    code : HashMap<usize, Vec<String>>,
 }
 
 impl InitFunction {
     pub fn empty() -> InitFunction {
         InitFunction {
             usestatements : vec![],
-            function_pre : vec![],
-            function_main : vec![],
-            function_post : vec![],
+            code : HashMap::new(),
         }
     }
 
     pub fn default() -> InitFunction {
         let mut new = Self::empty();
-        new.add(InitPart::Pre, r#"
+        new.add(InitPart::Pos05Early, r#"
         mem_init::init_stack();
         mem_init::init_data();
-        "#.into());
-        new.add(InitPart::UseStatement, "\n\nuse zinc::hal::mem_init;".into());
+        "#);
+        new.usetype("zinc::hal::mem_init");
         new
     }
 
-    pub fn add(&mut self, part : InitPart, code : String) {
-        match part {
-            InitPart::UseStatement => self.usestatements.push(code),
-            InitPart::Pre => self.function_pre.push(code),
-            InitPart::Main => self.function_main.push(code),
-            InitPart::Post => self.function_post.push(code),
-        }
+    pub fn add<'a, T:Into<Cow<'a, str>>>(&mut self, part : InitPart, code : T) {
+        self.code.entry(part as usize).or_insert_with(|| vec![]).push(code.into().into_owned());
+    }
+
+    pub fn usetype<'a, T:Into<Cow<'a, str>>>(&mut self, type_ : T) {
+        self.usestatements.push(format!("\nuse {};", type_.into()));
     }
 
     fn drain(&mut self) -> Vec<String> {
         let mut combined = vec![];
         combined.append(&mut self.usestatements);
         combined.push(FUNCTION_HEADER.into());
-        combined.append(&mut self.function_pre);
-        combined.append(&mut self.function_main);
-        combined.append(&mut self.function_post);
+        for i in 0..99usize {
+            match self.code.get_mut(&i) {
+                Some(mut vec) => {
+                    combined.append(&mut vec);
+                },
+                _ => {}
+            }
+        }
         combined.push(FUNCTION_FOOTER.into());
         combined
     }

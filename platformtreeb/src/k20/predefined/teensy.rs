@@ -5,12 +5,16 @@ use builder::InitPart;
 pub fn teensy_configurator(s : &mut McuSpecificConfig) {
 
 
-    s.get_base_config_mut().add_to_init(InitPart::UseStatement, "\nuse zinc::hal::k20::watchdog;".into());
-    s.get_base_config_mut().add_to_init(InitPart::UseStatement, "\nuse zinc::hal::k20::regs::*;".into());
-    s.get_base_config_mut().add_to_init(InitPart::UseStatement, "\nuse zinc::hal::k20::clocks;".into());
-    s.get_base_config_mut().add_to_init(InitPart::UseStatement, "\nuse zinc::hal::k20::rtc;".into());
-    s.get_base_config_mut().add_to_init(InitPart::Pre, r#"
+    s.get_base_config_mut().usetype_in_init("zinc::hal::k20::watchdog");
+    s.get_base_config_mut().usetype_in_init("zinc::hal::k20::regs::*");
+    s.get_base_config_mut().usetype_in_init("zinc::hal::k20::clocks");
+    s.get_base_config_mut().usetype_in_init("zinc::hal::k20::rtc");
+    s.get_base_config_mut().add_to_init(InitPart::Pos00Earliest, r#"
         watchdog::init(watchdog::State::Disabled);
+
+    "#);
+
+    s.get_base_config_mut().add_to_init(InitPart::Pos10Early, r#"
 
         SIM().scgc6.ignoring_state()
             .set_rtc(Sim_scgc6_rtc::Enabled)           // Allow access to RTC module
@@ -93,7 +97,7 @@ pub fn teensy_configurator(s : &mut McuSpecificConfig) {
         // wait for PLL clock to be used
         wait_for!(MCG().status.clkst() == Mcg_status_clkst::PLL);
         // now we're in PEE mode
-        
+
         // USB uses PLL clock, trace is CPU clock, CLKOUT=OSCERCLK0
         // SIM_SOPT2 = SIM_SOPT2_USBSRC | SIM_SOPT2_PLLFLLSEL | SIM_SOPT2_TRACECLKSEL
         //      | SIM_SOPT2_CLKOUTSEL(6);
@@ -110,17 +114,17 @@ pub fn teensy_configurator(s : &mut McuSpecificConfig) {
         // USB is at 48_000_000
 
 
-"#.into());
+"#);
 
-    s.get_base_config_mut().add_to_init(InitPart::UseStatement, "\nuse zinc::hal::cortex_m4::systick;".into());
+    s.get_base_config_mut().usetype_in_init("zinc::hal::cortex_m4::systick");
 
-    s.get_base_config_mut().add_to_init(InitPart::Main, r#"
-        // The CLKSOURCE bit in SysTick Control and Status register is 
+    s.get_base_config_mut().add_to_init(InitPart::Pos40Main, r#"
+        // The CLKSOURCE bit in SysTick Control and Status register is
         // always set to select the core clock.
         // Because the timing reference (FCLK) is a variable frequency, the TENMS bit in the
         // SysTick Calibration Value Register is always zero.
         // Set tick freq to 1 ms
-        systick::setup(72_000_000/1000); // 
+        systick::setup(72_000_000/1000); //
         systick::enable();
-"#.into());
+"#);
 }
