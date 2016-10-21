@@ -23,7 +23,7 @@ use util::{Bytes, write};
 use std::path::PathBuf;
 use std::env;
 
-/// Some Microcontroller allow splitting the EEPROM 
+/// Some Microcontroller allow splitting the EEPROM
 /// to allow two different endurance vs size tradeoffs
 /// at the same time.
 #[derive(Copy,Clone)]
@@ -47,7 +47,7 @@ pub struct MemoryConfig {
     pub eeprom_size : Bytes,
     pub eeprom_split : EEESplit,
     pub eeprom_backup_size : Bytes,
-    pub usbdescriptortable_size : Bytes,
+    pub usbbufferdescriptors_size : Bytes,
 }
 
 pub struct HardwareConfig {
@@ -74,7 +74,7 @@ impl McuSpecificConfig {
                 eeprom_size : Bytes::b(0),
                 eeprom_split : EEESplit::Unsupported,
                 eeprom_backup_size : Bytes::b(0),
-                usbdescriptortable_size : Bytes::b(0),
+                usbbufferdescriptors_size : Bytes::b(0),
             },
             hardware_config : HardwareConfig {
 
@@ -129,15 +129,15 @@ impl McuSpecificConfig {
 
     pub fn execute(&mut self) {
         println!("Execute Specific config");
+        if let Some(usb) = self.usb.as_mut() {
+            usb.configure(&mut self.memory_config);
+            usb.execute(&mut self.base_config);
+        }
         if self.linker_script {
             let mut out_dir : PathBuf = env::var("OUT_DIR").unwrap().into();
             println!("cargo:rustc-link-search=native={}", out_dir.to_str().unwrap());
             out_dir.push("layout.ld");
             write(&create_linker_script(&self), out_dir).unwrap();
-        }
-        if let Some(usb) = self.usb.as_mut() {
-            usb.configure(&mut self.memory_config);
-            usb.execute(&mut self.base_config);
         }
         self.base_config.execute();
     }

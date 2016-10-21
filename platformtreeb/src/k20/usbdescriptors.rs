@@ -13,6 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fmt::Write;
+use std::cmp::max;
+
 pub enum DescriptorTypes {
     Device,
     Configuration,
@@ -37,7 +40,7 @@ impl DescriptorTypes {
             &DescriptorTypes::DeviceQualifier => 6,
             &DescriptorTypes::OtherSpeedConfiguration => 7,
             &DescriptorTypes::InterfacePower => 8,
-            &DescriptorTypes::OnTheGo => 9, 
+            &DescriptorTypes::OnTheGo => 9,
             &DescriptorTypes::Cdc => 0x24,
         }
     }
@@ -187,13 +190,19 @@ impl EndpointAddress {
             }
         }
     }
+    pub fn addr(&self) -> u8 {
+        match *self {
+            EndpointAddress::Out(nr) => nr,
+            EndpointAddress::In(nr) => nr,
+        }
+    }
 }
 
 pub type EndpointAttributes = TransferType;
 
 pub enum TransferType {
     Control,
-    Isochronus(SyncType, UsageType),
+    Isochronous(SyncType, UsageType),
     Bulk,
     Interrupt,
 }
@@ -216,11 +225,17 @@ impl TransferType {
     pub fn id(&self) -> u8 {
         match self {
             &TransferType::Control => 0,
-            &TransferType::Isochronus(ref sync, ref usage) => {
+            &TransferType::Isochronous(ref sync, ref usage) => {
                 1 | (sync.id() << 2) | (usage.id() << 4)
             },
             &TransferType::Bulk => 2,
             &TransferType::Interrupt => 3,
+        }
+    }
+    pub fn is_isochronus(&self) -> bool {
+        match self {
+            &TransferType::Isochronous(_,_) => true,
+            _ => false,
         }
     }
 }
@@ -266,7 +281,7 @@ pub struct DeviceDescriptor {
 impl DeviceDescriptor {
     pub fn source(&self) -> String {
         format!(r#"
-    const DEVICEDESCRIPTOR: &'static [u8] = &[
+    pub const DEVICEDESCRIPTOR: &'static [u8] = &[
         0x{bLength:x},      // bLength
         0x{bDescriptorType:x},      // bDescriptorType
         0x{bcdUSB_LSB:x}, 0x{bcdUSB_MSB:x},// bcdUSB
@@ -485,7 +500,7 @@ impl StringDescriptor {
     pub fn len(&self) -> u8 { (2 + self.bString.as_bytes().len()) as u8 }
     pub fn source(&self) -> String {
         let mut s = format!(r#"
-    const STRING_{}_DESCRIPTOR: &'static [u8] = &[
+    pub const STRING_{}_DESCRIPTOR: &'static [u8] = &[
         0x{bLength:x},      // bLength
         0x{bDescriptorType:x},      // bDescriptorType
         // {bString}
@@ -510,11 +525,22 @@ fn msb(i : u16) -> u8 {
     (i >> 8) as u8
 }
 
+/// The hex values are the value the USBx_ENDPTn register must be set to to configure that endpoint
+/// correctly. See p994 of manual. Bits [0 0 0 enableControlTransfers enableRx enableTx isStalled !isochronous]
+#[derive(Default, Copy, Clone)]
+struct Endpointconfig(u8);
 
-
+impl Endpointconfig {
+    fn set_rx(&mut self) { self.0 |= 0b0001_1000 }
+    fn rx(&mut self) -> bool { self.0 & 0b0000_1000 != 0 }
+    fn set_tx(&mut self) { self.0 |= 0b0001_0100 }
+    fn tx(&mut self) -> bool { self.0 & 0b0000_0100 != 0 }
+    fn set_notisochronous(&mut self) { self.0 |= 0b0000_0001 }
+}
 
 pub struct DescriptorTree {
     device : DeviceDescriptor,
+    /// Id of the fallback string descriptor
     miss : u8,
     strings : Vec<StringDescriptor>,
     string0 : StringDescriptorZero,
@@ -538,14 +564,17 @@ impl DescriptorTree {
         self.collect_strings_calc_len();
 
         let mut source = vec![];
+
+        source.push(self.device.source());
+
         if let Some(configdescr) = self.device.configurations.iter().next() {
-            source.push("\n    const CONFIGDESCRIPTORTREE: &'static [u8] = &[".into());
+            source.push("\n    pub const CONFIGDESCRIPTORTREE: &'static [u8] = &[".into());
             source.push(configdescr.source());
             for interfacedescr in configdescr.interfaces.iter() {
                 source.push(interfacedescr.source());
                 for cdcdescr in interfacedescr.cdcs.iter() {
                     source.push(cdcdescr.source());
-                }                
+                }
                 for endpointdescr in interfacedescr.endpoints.iter() {
                     source.push(endpointdescr.source());
                 }
@@ -564,7 +593,11 @@ impl DescriptorTree {
             source.push(format!("\n            {} => STRING_{}_DESCRIPTOR,", stringdescr.id, stringdescr.id));
         }
         source.push(format!("\n            _ => STRING_{}_DESCRIPTOR,", self.miss));
-        source.push("\n        }\n    }".into());
+        source.push("\n        }\n    }\n".into());
+
+        source.push(self.source_buffer_descriptor_table());
+
+        source.push(self.endpoint_config().unwrap());// todo print error msg
         source
     }
 
@@ -610,6 +643,95 @@ impl DescriptorTree {
         self.miss = miss.0;
 
         self.strings = strings;
+    }
+
+    fn max_endpoint_addr(&self) -> usize {
+        let mut max_addr = 0;
+        if let Some(configdescr) = self.device.configurations.iter().next() {
+            for interfacedescr in configdescr.interfaces.iter() {
+                for endpointdescr in interfacedescr.endpoints.iter() {
+                    max_addr = max(max_addr, endpointdescr.bEndpointAddress.addr() as usize);
+                }
+            }
+        }
+        max_addr
+    }
+
+    fn num_bufferdescriptors(&self) -> usize {
+        (self.max_endpoint_addr() + 1) * 4
+    }
+
+    fn source_buffer_descriptor_table(&self) -> String {
+        let num_bds = self.num_bufferdescriptors();
+        let max_addr = self.max_endpoint_addr();
+        let mut s = String::with_capacity(200);
+        writeln!(s, "\n    pub const MAX_ENDPOINT_ADDR : u8 = {};" , max_addr).unwrap();
+        writeln!(s, "\n    pub const NUM_BUFFERDESCRIPTORS : usize = {};" , num_bds).unwrap();
+        writeln!(s, r#"
+    extern {{
+        #[no_mangle]
+        #[link_name="_usbbufferdescriptors"]
+        static mut usbbufferdescriptors : [::usb::BufferDescriptor; {}];
+    }}
+
+    #[allow(non_snake_case, dead_code)]
+    #[inline(always)]
+    pub fn BufferDescriptors() -> &'static mut [::usb::BufferDescriptor; {}] {{
+        unsafe {{ &mut usbbufferdescriptors }}
+    }}
+
+        "# , num_bds, num_bds).unwrap();
+
+        s
+    }
+
+    pub fn usbbufferdescriptors_size(&self) -> usize {
+        self.num_bufferdescriptors() * 8
+    }
+
+    pub fn endpoint_config(&self) -> Result<String, String> {
+        let mut source = String::with_capacity(1000);
+        if let Some(configdescr) = self.device.configurations.iter().next() {
+            let mut endp_configs = [Endpointconfig::default(); 16];
+            for interfacedescr in configdescr.interfaces.iter() {
+                for endpointdescr in interfacedescr.endpoints.iter() {
+                    let endp_nr = endpointdescr.bEndpointAddress.addr() as usize;
+                    let cfg : &mut Endpointconfig = &mut endp_configs[endp_nr];
+                    match endpointdescr.bEndpointAddress {
+                        EndpointAddress::In(_) => {
+                            if cfg.rx() {
+                                return Err(format!("Endpoint {} described as IN more than once.", endp_nr));
+                            } else {
+                                cfg.set_rx();
+                            }
+                        },
+                        EndpointAddress::Out(_) => {
+                            if cfg.tx() {
+                                return Err(format!("Endpoint {} described as OUT more than once.", endp_nr));
+                            } else {
+                                cfg.set_tx();
+                            }
+                        },
+                    }
+                    if configdescr.interfaces.iter()
+                       .flat_map(|i| i.endpoints.iter())
+                       .filter(|e| e.bEndpointAddress.addr() as usize == endp_nr)
+                       .any(|e| e.bmAttributes.is_isochronus() != endpointdescr.bmAttributes.is_isochronus()) {
+                        // The usb standard maybe? allows this but the k20 usb circit does not support it
+                        return Err(format!("Endpoint {} is configured as isochronous and as not isochronous.", endp_nr));
+                    }
+                    if !endpointdescr.bmAttributes.is_isochronus() {
+                        cfg.set_notisochronous();
+                    }
+                }
+            }
+            source.push_str("\n    pub const ENDPOINTCONFIG_FOR_REGISTERS: &'static [u8] = &[\n\t\t");
+            for cfg in (&endp_configs[..]).iter() {
+                write!(source, " 0x{:02x},", cfg.0).unwrap();
+            }
+            source.push_str("\n    ];");
+        }
+        Ok(source)
     }
 }
 

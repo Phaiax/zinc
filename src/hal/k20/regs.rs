@@ -1542,61 +1542,125 @@ ioregs!(Usb = { //! USB OTG Controller
     }
 });
 
-//     ioregs!(BufferDescriptor = { //! An individual K20 Buffer Descriptor
-//         0 => reg32 control { //! Control attributes
-//             25..16 => bc, //= Byte Count
-//             7 => own { //! Determines whether the processor or the USB-FS currently owns the buffer.
-//                 0 => Processor, //= this buffer descriptor can be modified by code/the CPU
-//                 1 => Controller //= this buffer descriptor can only be modifed by the USB controller
-//             },
-//             6 => data01 { //! Defines whether a DATA0 field (DATA0/1=0) or a DATA1 (DATA0/1=1) field was transmitted or received. It is unchanged by the USB-FS.
-//                 0 => Data0,
-//                 1 => Data1
-//             },
-//             5 => keep, //= Tok[3] _or_ 'Keep'. Typically, this bit is 1 with ISO endpoints feeding a FIFO. The microprocessor is not informed that a token has been processed, the data is simply transferred to or from the FIFO. When KEEP is set, normally the NINC bit is also set to prevent address increment.
-//             4 => ninc, //= Tok[2] _or_ 'No Increment'. Disables the DMA engine address increment. This forces the DMA engine to read or write from the same address. This is useful for endpoints when data needs to be read from or written to a single location such as a FIFO. Typically this bit is set with the KEEP bit for ISO endpoints that are interfacing to a FIFO.
-//             3 => dts, //= Tok[1] _or_ 'Data Toggle Synchronization'. Setting this bit enables the USB-FS to perform Data Toggle Synchronization.
-//             2 => bdt_stall, //= Tok[0] _or_ trigger STALL handshake if this BDT is used. Setting this bit causes the USB-FS to issue a STALL handshake if a token is received by the SIE that would use the BDT in this location.
-//         },
-//         4 => reg32 addr { //! Buffer Address
-//             31..0 => addr //= The 32bit address of the buffer in memory.
-//         }
-//     });
-//
-//     // Add an override field for pid_tok over 5..2 of a BufferDescriptor. (Hand implement what ioregs would)
-//     impl BufferDescriptor_control {
-//         /// Return the token for this buffer descriptor (overloaded with keep/ninc/dts/bdt_stall
-//         pub fn pid_tok(&self) -> u32 {
-//             BufferDescriptor_control_Get::new(self)
-//                 .pid_tok()
-//         }
-//
-//         /// Set the value of the pid_tok field
-//         pub fn set_pid_tok<'a>(&'a self, new_value: u32) -> BufferDescriptor_control_Update<'a> {
-//             let mut setter: BufferDescriptor_control_Update = BufferDescriptor_control_Update::new(self);
-//             setter.set_pid_tok(new_value);
-//             setter
-//         }
-//     }
-//
-//     impl BufferDescriptor_control_Get {
-//         /// Return the token for this buffer descriptor (overloaded with keep/ninc/dts/bdt_stall
-//         pub fn pid_tok(&self) -> u32 {
-//             ((self.value >> 2) & 0b1111)
-//         }
-//     }
-//
-//     impl<'a> BufferDescriptor_control_Update<'a> {
-//         /// Set the value of the pid_tok field
-//         #[inline(always)]
-//         pub fn set_pid_tok<'b>(&'b mut self, new_value: u32) -> &'b mut BufferDescriptor_control_Update<'a> {
-//
-//               self.value = (self.value & !(0b1111 << 2)) | ((new_value as u32) & 0b1111) << 2;
-//               self.mask |= 0b1111 << 2;
-//               self
-//         }
-//
-//     }
+ioregs!(Ftfl @ 0x4002_0000 = { //! Ftfl (Flash control)
+    0x0000 => reg8 stat { //! Flash Status Register
+        7 => ccif : set_to_clear { //! Command Complete Interrupt Flag
+            0 => InProgress,
+            1 => Completed
+        },
+        6 => rdcolerr : set_to_clear { //! Flash Read Collision Error Flag
+            0 => NoCollisionErrorDetected,
+            1 => CollisionErrorDetected
+        },
+        5 => accerr : set_to_clear { //! Flash Access Error Flag
+            0 => NoAccessErrorDetected,
+            1 => AccessErrorDetected
+        },
+        4 => fpviol : set_to_clear{ //! Flash Protection Violation Flag
+            0 => NoProtectionViolationDetected,
+            1 => ProtectionViolationDetected
+        },
+        0 => mgstat0 { //! Memory Controller Command Completion Status Flag
+            0 => NoErrorDetected,
+            1 => ErrorDetected //= During last command execution
+        },
+    },
+    0x0001 => reg8 fcnfg { //! Peripheral ID Completent Register
+        7 => ccie { //! Command Complete Interrupt Enable
+            0 => NoInterrupt,
+            1 => Interrupt
+        },
+        6 => rdcollie { //! Read Collision Error Interrupt Enable
+            0 => NoInterrupt,
+            1 => Interrupt
+        },
+        5 => ersareq : ro { //! Erase All Request
+            0 => NoRequest,
+            1 => EraseRequest
+        },
+        4 => erssusp { //! Erase Suspend
+            0 => NoSuspendRequested,
+            1 => RequestSuspend
+        },
+        2 => pflsh : ro { //! Flash Memory Configuration
+            0 => ConfiguredForFlexMemory,
+            1 => Reserved
+        },
+        1 => ramrdy : ro { //! RAM Ready (FlexRAM)
+            0 => NotAvailable, //= Not available for traditional RAM access
+            1 => Available
+        },
+        0 => eeerdy : ro { //! EEPROM Ready
+            0 => NotAvailable,
+            1 => Available //= FlexRAM is available for EEPROM operations
+        },
+    },
+    0x0002 => reg8 fsec { //! Flash Security Register
+        7..6 => keyen : ro { //! Backdoor Key Security Enable
+            0b00 => Disabled1,
+            0b01 => Disabled2, //= Preferred state for disabled
+            0b10 => Enabled,
+            0b11 => Disabled3,
+        },
+        5..4 => meen : ro { //! Mass Erase Enable Bits
+            0b00 => Enabled1,
+            0b01 => Enabled2,
+            0b10 => Disabled,
+            0b11 => Enabled3,
+        },
+        3..2 => fslacc : ro { //! Freescale Failure Analysis Access Code
+            0b00 => Granted1,
+            0b01 => Denied1,
+            0b10 => Denied2,
+            0b11 => Granted2,
+        },
+        1..0 => sec : ro { //! Backdoor Key Security Enable
+            0b00 => Secure1,
+            0b01 => Secure2,
+            0b10 => Unsecure,
+            0b11 => Secure3,
+        },
+    },
+    0x0003 => reg8 fopt { //! Flash Option Register
+        7..0 => opt : ro, //= Nonvolatile Option
+    },
+    0x0004 => reg8 fccob3 { //! Flash Common Command Object Register 3
+        7..0 => ccob3 //= Command code or parameter
+    },
+    0x0005 => reg8 fccob2 { //! Flash Common Command Object Register 2
+        7..0 => ccob2 //= Command code or parameter
+    },
+    0x0006 => reg8 fccob1 { //! Flash Common Command Object Register 1
+        7..0 => ccob1 //= Command code or parameter
+    },
+    0x0007 => reg8 fccob0 { //! Flash Common Command Object Register 0
+        7..0 => ccob0 //= Command code or parameter
+    },
+    0x0008 => reg8 fccob7 { //! Flash Common Command Object Register 7
+        7..0 => ccob7 //= Command code or parameter
+    },
+    0x0009 => reg8 fccob6 { //! Flash Common Command Object Register 6
+        7..0 => ccob6 //= Command code or parameter
+    },
+    0x000A => reg8 fccob5 { //! Flash Common Command Object Register 5
+        7..0 => ccob5 //= Command code or parameter
+    },
+    0x000B => reg8 fccob4 { //! Flash Common Command Object Register 4
+        7..0 => ccob4 //= Command code or parameter
+    },
+    0x000C => reg8 fccobb { //! Flash Common Command Object Register 11
+        7..0 => ccobb //= Command code or parameter
+    },
+    0x000D => reg8 fccoba { //! Flash Common Command Object Register 10
+        7..0 => ccoba //= Command code or parameter
+    },
+    0x000E => reg8 fccob9 { //! Flash Common Command Object Register 9
+        7..0 => ccob9 //= Command code or parameter
+    },
+    0x000F => reg8 fccob8 { //! Flash Common Command Object Register 8
+        7..0 => ccob8 //= Command code or parameter
+    },
+});
 
 impl<'a> Usb_istat_Update<'a> {
     /// Clear all ISR flags

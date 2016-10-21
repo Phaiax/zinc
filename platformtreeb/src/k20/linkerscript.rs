@@ -24,12 +24,14 @@ pub fn create_linker_script(m : &McuSpecificConfig) -> String {
     template.replace("{{ sramsize }}", &m.get_mcu_parameters().get_sram_size().str());
     template.replace("{{ eflashsize }}", &m.get_e_flash_size().str());
 
-    if m.get_memory_config().usbdescriptortable_size.0 > 0 {
-        template.replace("/* {{ usbdescriptortable }} */", r#"
-            .usbdescriptortable (NOLOAD) : ALIGN(512) {
-                *(.usbdescriptortable*)
-            } > ram
-        "#);
+    if m.get_memory_config().usbbufferdescriptors_size.0 > 0 {
+        template.replace("/* {{ usbdescriptortable }} */", &format!(r#"
+            .usbbufferdescriptors (NOLOAD) : ALIGN(512) {{
+                /* *(.usbbufferdescriptors*) */
+                _usbbufferdescriptors = .;
+                . += {};
+            }} > ram
+        "#, m.get_memory_config().usbbufferdescriptors_size.0));
     }
 
     // TODO implement eeprom stuff

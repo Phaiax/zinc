@@ -16,6 +16,7 @@
 use super::usbdescriptors::{DescriptorTree};
 use builder::BuilderConfig;
 use super::builder::MemoryConfig;
+use util::Bytes;
 
 pub struct UsbConfig {
     descriptortree : DescriptorTree,
@@ -28,8 +29,8 @@ impl UsbConfig {
         }
     }
 
-    pub fn configure(&mut self, _ : &mut MemoryConfig) {
-
+    pub fn configure(&mut self, memory_config : &mut MemoryConfig) {
+        memory_config.usbbufferdescriptors_size = Bytes::b(self.descriptortree.usbbufferdescriptors_size() as u32);
     }
 
     pub fn execute(&mut self, base_config : &mut BuilderConfig) {
