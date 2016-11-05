@@ -166,6 +166,7 @@ impl<'a, 'b> BuildUnionTypes<'a, 'b> {
     // Registers are already sorted by parser
     let mut regs = regs.clone();
     let mut regs2 = regs.clone();
+    let mut regs3 = regs.clone();
     let padded_regs = PaddedRegsIterator::new(&mut regs);
     let fields =
       padded_regs.enumerate().map(|(n,r)| self.build_pad_or_reg(path, r, n));
@@ -227,6 +228,36 @@ impl<'a, 'b> BuildUnionTypes<'a, 'b> {
     let copy_impl = quote_item!(
         self.cx, impl ::core::marker::Copy for $name {}).unwrap();
 
+    let depthtabs = String::from_utf8(path.iter().map(|_| b'\t').collect()).unwrap();
+    let padded_regs3 = PaddedRegsIterator::new(&mut regs3);
+    let (debugformatstr, debugformatargs) = padded_regs3.filter_map(|rp|
+        match rp {
+          RegOrPadding::Reg(reg) => Some(reg),
+          RegOrPadding::Pad(_) => None,
+        })
+      .fold(("".to_string(), String::new()), |(mut formatstr, mut formatargs), reg| {
+          let n = reg.name.node.as_str();
+          if reg.count.node == 1 {
+            formatstr.push_str(&format!("\n{}{}: < {{:?}}>", depthtabs, n));
+            formatargs.push_str(&format!("self.{},", n));
+          } else {
+            formatstr.push_str(&format!("\n{}{}[{}]: {{:?}},", depthtabs, n, reg.count.node));
+            formatargs.push_str(&format!("&self.{}[..],", n));
+          }
+          (formatstr, formatargs)
+      });
+
+    use syntax::ext::quote::rt::ExtParseUtils;
+    let debugformatargstt = self.cx.parse_tts(debugformatargs);
+    let debug_impl = quote_item!(self.cx,
+      #[allow(dead_code)]
+      impl ::core::fmt::Debug for $name {
+        fn fmt(&self, f : &mut ::core::fmt::Formatter) -> ::core::result::Result<(), ::core::fmt::Error> {
+          write!(f, $debugformatstr, $debugformatargstt)
+        }
+      }
+    ).unwrap();
+
     let item_address = reg.address;
     let docstring = format!("Placement getter for register {} at address 0x{:x}",
                             reg.name.node,
@@ -242,9 +273,9 @@ impl<'a, 'b> BuildUnionTypes<'a, 'b> {
       }
     ).unwrap();
     if item_address == 0 {
-      vec!(struct_item, clone_impl, copy_impl)
+      vec!(struct_item, clone_impl, copy_impl, debug_impl)
     } else {
-      vec!(struct_item, clone_impl, copy_impl, item_getter)
+      vec!(struct_item, clone_impl, copy_impl, debug_impl, item_getter)
     }
   }
 }

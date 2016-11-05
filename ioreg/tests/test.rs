@@ -95,7 +95,7 @@ mod test {
   #[test]
   fn set_field_twice() {
     let test: BASIC_TEST = zeroed_safe();
-    
+
     test.reg1.set_field3(0xAA).set_field3(0x55);
     assert_eq!(test.reg1.field3(), 0x55);
   }
@@ -103,9 +103,9 @@ mod test {
   #[test]
   fn set_independent_fields() {
     let test: BASIC_TEST = zeroed_safe();
-    
+
     test.reg1.set_field2(0b010).set_field3(0xf0);
-    
+
     assert_eq!(test.reg1.field2(), 0b010);
     assert_eq!(test.reg1.field3(), 0xf0);
   }
@@ -298,4 +298,39 @@ mod test {
     test.reg1[0].set_field(0, true);
     assert_eq!(test.reg1[0].field(0), true);
   }
+
+  ioregs!(BIG_TEST = {
+    0x0 => group regs[5] {
+      0x0 => reg32 reg1 {
+        0..31 => field1
+      }
+      0x4 => reg32 reg2 {
+        6..10 => field2, //= field10
+        3..4 => field3 { //! field3
+            0b00 => F3Var1, //= F3Var1
+            0b01 => F3Var2, //= F3Var2
+            0b10 => F3Var3, //= F3Var3
+            0b11 => F3Var4 //= F3Var4
+        },
+        1 => field4 { //! Low Power Select
+            0x0 => Var1,
+            0x1 => Var2 //= FLL or PLL disabled in bypass modes
+        },
+      }
+    },
+    0x400     => reg32 reg3 {
+      0..31   => field5,
+    }
+    0x400     => reg32 reg4[64] {
+      0..31   => field5[4],
+    }
+  });
+
+  #[test]
+  fn debug() {
+    let test : BIG_TEST = zeroed_safe();
+    test.regs[3].reg2.set_field3(BIG_TEST_regs_reg2_field3::F3Var3);
+    print!("{:?}", test);
+  }
+
 }

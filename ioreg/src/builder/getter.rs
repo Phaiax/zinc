@@ -50,6 +50,9 @@ impl<'a, 'b> node::RegVisitor for BuildGetters<'a, 'b> {
       let it = build_impl(self.cx, path, reg, fields);
       self.builder.push_item(it);
 
+      let it = build_debug(self.cx, path, reg, fields);
+      self.builder.push_item(it);
+
       // Build Copy impl
       let ty_name = utils::getter_name(self.cx, path);
       let it = quote_item!(self.cx,
@@ -118,7 +121,7 @@ fn build_new(cx: &ExtCtxt, path: &Vec<String>,
 fn from_primitive(cx: &ExtCtxt, path: &Vec<String>, _: &node::Reg,
                   field: &node::Field, prim: P<ast::Expr>)
                   -> P<ast::Expr> {
-  // Use bit_range_field for the span because it is to blame for the 
+  // Use bit_range_field for the span because it is to blame for the
   // type of the register
   match field.ty.node {
     node::FieldType::UIntField => prim,
@@ -201,6 +204,56 @@ fn build_impl(cx: &ExtCtxt, path: &Vec<String>, reg: &node::Reg,
       $get_raw
     }
   );
+  let mut item: ast::Item = it.unwrap().deref().clone();
+  item.span = reg.name.span;
+  P(item)
+}
+
+fn build_debug(cx: &ExtCtxt, path: &Vec<String>, reg: &node::Reg,
+              fields: &Vec<node::Field>) -> P<ast::Item> {
+  let getter_ty = utils::getter_name(cx, path);
+
+  use syntax::ext::quote::rt::ExtParseUtils;
+
+  let depthtabs = String::from_utf8(path.iter().map(|_| b'\t').collect()).unwrap();
+  let (mut debugformatstr, debugformatargs) = fields.iter()
+    .fold(("".to_string(), String::new()), |(mut formatstr, mut formatargs), field| {
+        let fieldformat = match field.ty.node {
+          node::FieldType::UIntField => "0x{:x}",
+          node::FieldType::BoolField => "{:?}",
+          node::FieldType::EnumField{opt_name : _, variants : _} => "{:?}"
+        };
+        if field.count.node == 1 {
+          formatstr.push_str(&format!("{} : {} | ", field.name.node, fieldformat));
+          formatargs.push_str(&format!("self.{}(), ", field.name.node));
+        } else {
+          formatstr.push_str(&format!("\n{}{}[{}] : [", depthtabs, field.name.node, field.count.node));
+          for i in 0..field.count.node {
+            formatstr.push_str(&format!("{}, ", fieldformat));
+            formatargs.push_str(&format!("self.{}({}),", field.name.node, i));
+          }
+          let l = formatstr.len();
+          formatstr.truncate(l.saturating_sub(2));
+          formatstr.push_str("], ");
+        }
+        (formatstr, formatargs)
+      }
+    );
+
+  let l = debugformatstr.len();
+  debugformatstr.truncate(l.saturating_sub(2));
+
+  let formatargstt = cx.parse_tts(debugformatargs);
+
+  let it = quote_item!(cx,
+    #[allow(dead_code)]
+    impl ::core::fmt::Debug for $getter_ty {
+      fn fmt(&self, f : &mut ::core::fmt::Formatter) -> ::core::result::Result<(), ::core::fmt::Error> {
+        write!(f, $debugformatstr, $formatargstt)
+      }
+    }
+  );
+
   let mut item: ast::Item = it.unwrap().deref().clone();
   item.span = reg.name.span;
   P(item)

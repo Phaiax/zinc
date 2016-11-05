@@ -43,8 +43,10 @@ impl<'a, 'b> node::RegVisitor for BuildRegStructs<'a, 'b> {
         self.builder.push_item(item);
       }
     }
+    let has_getters = fields.iter()
+      .any(|f| f.access != node::Access::WriteOnly);
 
-    for item in build_reg_struct(self.cx, path, reg, &width).into_iter() {
+    for item in build_reg_struct(self.cx, path, reg, &width, has_getters).into_iter() {
       self.builder.push_item(item);
     }
   }
@@ -74,7 +76,7 @@ fn build_field_type(cx: &ExtCtxt, path: &Vec<String>,
       };
       let mut attrs: Vec<ast::Attribute> = vec!(
         utils::list_attribute(cx, "derive",
-                              vec!("PartialEq"),
+                              vec!("PartialEq", "Debug"),
                               field.name.span),
         utils::list_attribute(cx, "allow",
                               vec!("dead_code",
@@ -113,8 +115,9 @@ fn build_field_type(cx: &ExtCtxt, path: &Vec<String>,
 /// For instance,
 ///
 ///     pub struct REG {_value: u32}
-fn build_reg_struct(cx: &ExtCtxt, path: &Vec<String>,
-    reg: &node::Reg, _width: &node::RegWidth) -> Vec<P<ast::Item>> {
+fn build_reg_struct(cx: &ExtCtxt, path: &Vec<String>, reg: &node::Reg,
+                    _width: &node::RegWidth, has_getters : bool)
+                    -> Vec<P<ast::Item>> {
   let packed_ty =
     utils::reg_primitive_type(cx, reg)
     .expect("Unexpected non-primitive reg");
@@ -141,7 +144,24 @@ fn build_reg_struct(cx: &ExtCtxt, path: &Vec<String>,
   let mut item: ast::Item = item.unwrap().deref().clone();
   item.span = reg.name.span;
   let copy_impl = quote_item!(cx, impl ::core::marker::Copy for $ty_name {}).unwrap();
-  vec!(P(item), copy_impl)
+  let debug_impl = if has_getters {
+      quote_item!(cx,
+        impl ::core::fmt::Debug for $ty_name {
+          fn fmt(&self, f : &mut ::core::fmt::Formatter) -> ::core::result::Result<(), ::core::fmt::Error> {
+            self.get().fmt(f)
+          }
+        }
+      )
+    } else {
+      quote_item!(cx,
+        impl ::core::fmt::Debug for $ty_name {
+          fn fmt(&self, f : &mut ::core::fmt::Formatter) -> ::core::result::Result<(), ::core::fmt::Error> {
+            write!(f, "(write only)")
+          }
+        }
+      )
+    }.unwrap();
+  vec!(P(item), copy_impl, debug_impl)
 }
 
 /// Build a variant of an `EnumField`
