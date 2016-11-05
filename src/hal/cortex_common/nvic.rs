@@ -83,7 +83,7 @@ mod reg {
     0x300     => reg32 iabr[8] {      //! Interrupt active bit register
       0..31   => iabr[32]: ro,
     }
-    0x400     => reg32 ipr[8] {       //! Interrupt priority register
+    0x400     => reg32 ipr[64] {       //! Interrupt priority register
       0..31   => ipr[4],
     }
     0xF00     => reg32 stir[8] {      //! Software triggered interrupt register

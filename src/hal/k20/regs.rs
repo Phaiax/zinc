@@ -1437,7 +1437,7 @@ ioregs!(Usb = { //! USB OTG Controller
         6..0 => addr //= USB Address
     },
     0x009C => reg8 bdtpage1 { //! BDT Page Register 1
-        7..1 => bdtba //= Bits 15..9 of the BDT base address (bits 8..0 are always 0 due to 512 byte alignment)
+        7..0 => bdtba //= Bits 15..9 of the BDT base address (bits 8..0 are always 0 due to 512 byte alignment)
     },
     0x00A0 => reg8 frmnuml { //! Frame Number Register Low
         7..0 => frm //= This 8-bit field and the 3-bit field in the Frame Number Register High are used to compute the address where the current Buffer Descriptor Table (BDT) resides in system memory.
@@ -1447,6 +1447,7 @@ ioregs!(Usb = { //! USB OTG Controller
     },
     0x00A8 => reg8 token { //! Token register
         7..4 => tokenpid { //! Contains the token type executed by the USB module.
+            0b0000 => Uninitialized,
             0b0001 => OutToken,
             0b1001 => InToken,
             0b1101 => SetupToken
@@ -1457,10 +1458,10 @@ ioregs!(Usb = { //! USB OTG Controller
         7..0 => cnt //= Represents the SOF count threshold in byte times.
     },
     0x00B0 => reg8 bdtpage2 { //! BDT Page Register 2
-        7..1 => bdtba //= Bits 23..16 of the BDT base address (bits 8..0 are always 0 due to 512 byte alignment)
+        7..0 => bdtba //= Bits 23..16 of the BDT base address (bits 8..0 are always 0 due to 512 byte alignment)
     },
     0x00B4 => reg8 bdtpage3 { //! BDT Page Register 3
-        7..1 => bdtba //= Bits 31..24 of the BDT base address (bits 8..0 are always 0 due to 512 byte alignment)
+        7..0 => bdtba //= Bits 31..24 of the BDT base address (bits 8..0 are always 0 due to 512 byte alignment)
     },
     0x00C0 => group endpt[16] {
         0x00 => reg8 endpt {
@@ -1662,6 +1663,153 @@ ioregs!(Ftfl @ 0x4002_0000 = { //! Ftfl (Flash control)
     },
 });
 
+ioregs!(Fmc = { //! Fmc (Flash Memory Controller)
+    0x0000 => reg32 pfapr { //! Flash Access Protection Register
+        23 => m7pfd { //! Master 7 Prefetch Disable
+            0 => Enabled,
+            1 => Disabled
+        },
+        22 => m6pfd { //! Master 6 Prefetch Disable
+            0 => Enabled,
+            1 => Disabled
+        },
+        21 => m5pfd { //! Master 5 Prefetch Disable
+            0 => Enabled,
+            1 => Disabled
+        },
+        20 => m4pfd { //! Master 4 Prefetch Disable
+            0 => Enabled,
+            1 => Disabled
+        },
+        19 => m3pfd { //! Master 3 Prefetch Disable
+            0 => Enabled,
+            1 => Disabled
+        },
+        18 => m2pfd { //! Master 2 Prefetch Disable
+            0 => Enabled,
+            1 => Disabled
+        },
+        17 => m1pfd { //! Master 1 Prefetch Disable
+            0 => Enabled,
+            1 => Disabled
+        },
+        16 => m0pfd { //! Master 0 Prefetch Disable
+            0 => Enabled,
+            1 => Disabled
+        },
+        15..14 => m7ap { //! Master 7 Access Protection
+            0b00 => NoAccess,
+            0b01 => ReadOnly,
+            0b10 => WriteOnly,
+            0b11 => ReadAndWrite,
+        },
+        13..12 => m6ap { //! Master 6 Access Protection
+            0b00 => NoAccess,
+            0b01 => ReadOnly,
+            0b10 => WriteOnly,
+            0b11 => ReadAndWrite,
+        },
+        11..10 => m5ap { //! Master 5 Access Protection
+            0b00 => NoAccess,
+            0b01 => ReadOnly,
+            0b10 => WriteOnly,
+            0b11 => ReadAndWrite,
+        },
+        9..8 => m4ap { //! Master 4 Access Protection
+            0b00 => NoAccess,
+            0b01 => ReadOnly,
+            0b10 => WriteOnly,
+            0b11 => ReadAndWrite,
+        },
+        7..6 => m3ap { //! Master 3 Access Protection
+            0b00 => NoAccess,
+            0b01 => ReadOnly,
+            0b10 => WriteOnly,
+            0b11 => ReadAndWrite,
+        },
+        5..4 => m2ap { //! Master 2 Access Protection
+            0b00 => NoAccess,
+            0b01 => ReadOnly,
+            0b10 => WriteOnly,
+            0b11 => ReadAndWrite,
+        },
+        3..2 => m1ap { //! Master 1 Access Protection
+            0b00 => NoAccess,
+            0b01 => ReadOnly,
+            0b10 => WriteOnly,
+            0b11 => ReadAndWrite,
+        },
+        1..0 => m0ap { //! Master 0 Access Protection
+            0b00 => NoAccess,
+            0b01 => ReadOnly,
+            0b10 => WriteOnly,
+            0b11 => ReadAndWrite,
+        },
+    },
+    0x0004 => reg32 pfb0cr { //! Flash Bank 0 Control Register
+        31..28 => b0rwsc : ro, //= Bank 0 Read Wait State Control
+        27 => clck_way3 { //! Cache Lock Way 3
+            1 => Locked,
+            0 => Unlocked,
+        },
+        26 => clck_way2 { //! Cache Lock Way 2
+            1 => Locked,
+            0 => Unlocked,
+        },
+        25 => clck_way1 { //! Cache Lock Way 1
+            1 => Locked,
+            0 => Unlocked,
+        },
+        24 => clck_way0 { //! Cache Lock Way 0
+            1 => Locked,
+            0 => Unlocked,
+        },
+        23 => cinv_way3 : set_to_clear, //= Cache Invalidate Way 3
+        22 => cinv_way2 : set_to_clear, //= Cache Invalidate Way 2
+        21 => cinv_way1 : set_to_clear, //= Cache Invalidate Way 1
+        20 => cinv_way0 : set_to_clear, //= Cache Invalidate Way 0
+        19 => s_b_inv : set_to_clear, //= Invalidate Prefetch Speculation Buffer
+        18..17 => b0mw : ro { //! Bank 0 Memory Width
+            0b00 => Bits32,
+            0b01 => Bits64,
+        },
+        7..5 => crc { //! Cache Replacement Control
+            0b000 => LruAlgorithm,
+            0b010 => Ifetch01Data23,
+            0b011 => Ifetch012Data3,
+        },
+        4 => b0dce { //! Bank 0 Data Cache Enable
+            0 => DontCache,
+            1 => Cache,
+        },
+        3 => b0ice { //! Bank 0 Instruction Cache Enable
+            0 => DontCache,
+            1 => Cache,
+        },
+        2 => b0dpe { //! Bank 0 Data Prefetch Enable
+            0 => DontPrefetch,
+            1 => Prefetch,
+        },
+        1 => b0ipe { //! Bank 0 Instruction Prefetch Enable
+            0 => DontPrefetch,
+            1 => Prefetch,
+        },
+        0 => b0sebe { //! Bank 0 Single Entry Buffer Enable
+            0 => Disable,
+            1 => Enable,
+        },
+    },
+    0x0008 => reg32 pfb1cr { //! Flash Bank 1 Control Register
+        31..28 => b1rwsc : ro, //= Bank 1 Read Wait State Control
+        18..17 => b1mw : ro { //! Bank 1 Memory Width
+            0b00 => Bits32,
+            0b01 => Bits64,
+        },
+    },
+});
+
+
+
 impl<'a> Usb_istat_Update<'a> {
     /// Clear all ISR flags
     #[inline(always)]
@@ -1708,6 +1856,18 @@ impl<'a> Usb_erren_Update<'a> {
         self
     }
 }
+
+impl<'a> Usb_endpt_endpt_Update<'a> {
+    /// Clears the flags set in `raw`
+    #[inline(always)]
+    pub fn set_raw<'b>(&'b mut self, raw : u8) -> &'b mut Usb_endpt_endpt_Update<'a> {
+        self.value = raw;
+        self.mask = 0xFF;
+        self
+    }
+}
+
+
 
 impl From<Spi_ctar_ctar_dbr> for u32 {
     fn from(dbr: Spi_ctar_ctar_dbr) -> u32 {
@@ -1762,3 +1922,4 @@ ioreg_assign!(k20_iomem_PIT, PIT, Pit);
 ioreg_assign!(k20_iomem_SPI0, SPI0, Spi);
 ioreg_assign!(k20_iomem_SPI1, SPI1, Spi);
 ioreg_assign!(k20_iomem_USB, USB, Usb);
+ioreg_assign!(k20_iomem_FLASHCON, FMC, Fmc);
