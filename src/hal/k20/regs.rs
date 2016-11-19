@@ -1412,7 +1412,10 @@ ioregs!(Usb = { //! USB OTG Controller
             0 => Rx,
             1 => Tx
         },
-        2 => odd:ro //= This bit is set if the last buffer descriptor updated was in the odd bank of the BDT.
+        2 => odd:ro { //! This bit is set if the last buffer descriptor updated was in the odd bank of the BDT.
+            0 => Even,
+            1 => Odd,
+        }
     },
     0x0094 => reg8 ctl { //! USB Control register
         7 => jstate, //= Live USB differential receiver JSTATE signal
@@ -1857,6 +1860,19 @@ impl<'a> Usb_erren_Update<'a> {
     }
 }
 
+impl Usb_endpt_endpt {
+    /// Create from raw
+    pub const fn from_raw(raw : u8) -> Usb_endpt_endpt {
+        Usb_endpt_endpt {
+            value : VolatileCell::const_new(raw)
+        }
+    }
+    /// Get raw
+    pub fn raw(&self) -> u8 {
+        self.value.get()
+    }
+}
+
 impl<'a> Usb_endpt_endpt_Update<'a> {
     /// Clears the flags set in `raw`
     #[inline(always)]
@@ -1867,7 +1883,18 @@ impl<'a> Usb_endpt_endpt_Update<'a> {
     }
 }
 
+impl Usb_stat_odd {
+    /// Toggles Odd/Even
+    pub fn toggle(&mut self) {
+        *self = match *self {
+            Usb_stat_odd::Even => Usb_stat_odd::Odd,
+            Usb_stat_odd::Odd => Usb_stat_odd::Even,
+        }
+    }
+}
 
+impl Copy for Usb_stat_odd {}
+impl Clone for Usb_stat_odd { fn clone(&self) -> Usb_stat_odd { *self } }
 
 impl From<Spi_ctar_ctar_dbr> for u32 {
     fn from(dbr: Spi_ctar_ctar_dbr) -> u32 {

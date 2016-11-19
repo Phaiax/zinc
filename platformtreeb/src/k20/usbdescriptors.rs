@@ -26,7 +26,8 @@ pub enum DescriptorTypes {
     OtherSpeedConfiguration,
     InterfacePower,
     OnTheGo,
-    Cdc,
+    CdcInterface,
+    CdcEndpoint,
 }
 
 impl DescriptorTypes {
@@ -41,25 +42,190 @@ impl DescriptorTypes {
             &DescriptorTypes::OtherSpeedConfiguration => 7,
             &DescriptorTypes::InterfacePower => 8,
             &DescriptorTypes::OnTheGo => 9,
-            &DescriptorTypes::Cdc => 0x24,
+            &DescriptorTypes::CdcInterface => 0x24,
+            &DescriptorTypes::CdcEndpoint => 0x25,
         }
     }
 }
 
-pub enum CDCDescriptorSubTypes {
-    CDCHeader,
-    CallManagement,
-    AbstactControl,
-    UnionFunctional,
+
+/// The enum name matches the bDescriptor SubType field
+/// in the Communications Class Functional Descriptor.
+/// Some Enums contain associated data.
+/// Not all interfaces have been implemented here yet.
+#[allow(non_snake_case)]
+pub enum CdcInterfaceFunctionalDescriptor {
+    Header { bcdCDC: BcdCdc },
+    CallManagement { bmCapabilities : u8, bDataInterface : u8 },
+    AbstractControlManagement { bmCapabilities : u8 },
+    DirectLineManagement,
+    TelephoneRinger,
+    TelephoneCallAndLineStateReportingCapabilities,
+    /// bControlInterface: The interface number of the Communications or
+    ///                    Data Class interface, designated as the controlling
+    ///                    interface for the union.*
+    /// bSubordinateInterface0: Interface number of first subordinate interface
+    ///                         in the union. *
+    ///
+    /// * Zero based index of the interface in this configuration (bInterfaceNum).
+    Union { bControlInterface: u8, bSubordinateInterfaces : Vec<u8> },
+    CountrySelection { iCountryCodeRelDate: StringId, wCountryCodes : Vec<u16> },
+    TelephoneOperationalModes,
+    UsbTerminal,
+    NetworkChannel,
+    ProtocolUnit,
+    ExtensionUnit,
+    MultiChannelManagement,
+    CapiControlManagement,
+    EthernetNetworking,
+    AtmNetworking,
+    WirelessHandsetControlModel,
+    MobileDirectLineModel,
+    MdlmDetail,
+    DeviceManagementModel,
+    Obex,
+    CommandSet,
+    CommandSetDetail,
+    TelephoneControlModel,
+    ObexServiceIdentifier,
+    Ncm,
+    Mbim,
+    MbimExtended,
+    /// 0x1D-0x7F
+    FutureUse{ sub_type_id : u8, data : Vec<u8> },
+    /// 0x80-0xFE
+    VendorSpecific{ sub_type_id : u8, data : Vec<u8> },
 }
 
-impl CDCDescriptorSubTypes {
-    pub fn id(&self) -> u8 {
+/// The general format is:
+/// * Byte 0: bFunctionLength, Number, Size of this descriptor.
+/// * Byte 1: bDescriptorType, Constant, CS_INTERFACE aka DescriptorTypes::CdcInterface
+/// * Byte 2: bDescriptorSubtype, Constant, Identifier (ID) of functional descriptor.
+/// * Then follows the type specific data
+impl CdcInterfaceFunctionalDescriptor {
+    pub fn len(&self) -> u8 {
+        let (_, datalength) = self.source_data_part();
+        3 + datalength
+    }
+    pub fn source(&self) -> String {
+        let (datasource, datalength) = self.source_data_part();
+        format!(r#"
+        // CDC Interface Functional Descriptor : {name}
+            {bLength},        // bLength
+            0x{bDescriptorType:x},     // bDescriptorType
+            0x{bDescriptorSubType:x},      // bDescriptorSubType
+            {data_part}"#,
+            name = self.name(),
+            bLength = 3 + datalength,
+            bDescriptorType = DescriptorTypes::CdcInterface.id(),
+            bDescriptorSubType = self.sub_type_id(),
+            data_part = &datasource)
+    }
+    fn sub_type_id(&self) -> u8 {
+        use self::CdcInterfaceFunctionalDescriptor::*;
         match self {
-            &CDCDescriptorSubTypes::CDCHeader => 0,
-            &CDCDescriptorSubTypes::CallManagement => 1,
-            &CDCDescriptorSubTypes::AbstactControl => 2,
-            &CDCDescriptorSubTypes::UnionFunctional => 6,
+            &Header{..} => 0x00,
+            &CallManagement{..} => 0x01,
+            &AbstractControlManagement{..} => 0x02,
+            &DirectLineManagement => 0x03,
+            &TelephoneRinger => 0x04,
+            &TelephoneCallAndLineStateReportingCapabilities => 0x05,
+            &Union{..} => 0x06,
+            &CountrySelection{..} => 0x07,
+            &TelephoneOperationalModes => 0x08,
+            &UsbTerminal => 0x09,
+            &NetworkChannel => 0x0A,
+            &ProtocolUnit => 0x0B,
+            &ExtensionUnit => 0x0C,
+            &MultiChannelManagement => 0x0D,
+            &CapiControlManagement => 0x0E,
+            &EthernetNetworking => 0x0F,
+            &AtmNetworking => 0x10,
+            &WirelessHandsetControlModel => 0x11,
+            &MobileDirectLineModel => 0x12,
+            &MdlmDetail => 0x13,
+            &DeviceManagementModel => 0x14,
+            &Obex => 0x15,
+            &CommandSet => 0x16,
+            &CommandSetDetail => 0x17,
+            &TelephoneControlModel => 0x18,
+            &ObexServiceIdentifier => 0x19,
+            &Ncm => 0x1A,
+            &Mbim => 0x1B,
+            &MbimExtended => 0x1C,
+            &FutureUse{ sub_type_id : n, .. } => n,
+            &VendorSpecific{ sub_type_id : n, .. } => n,
+        }
+    }
+    fn name(&self) -> String {
+        use self::CdcInterfaceFunctionalDescriptor::*;
+        match self {
+            &Header{..} => "Header",
+            &CallManagement{..} => "CallManagement",
+            &AbstractControlManagement{..} => "AbstractControlManagement",
+            &DirectLineManagement => "DirectLineManagement",
+            &TelephoneRinger => "TelephoneRinger",
+            &TelephoneCallAndLineStateReportingCapabilities => "TelephoneCallAndLineStateReportingCapabilities",
+            &Union{..} => "Union",
+            &CountrySelection{..} => "CountrySelection",
+            &TelephoneOperationalModes => "TelephoneOperationalModes",
+            &UsbTerminal => "UsbTerminal",
+            &NetworkChannel => "NetworkChannel",
+            &ProtocolUnit => "ProtocolUnit",
+            &ExtensionUnit => "ExtensionUnit",
+            &MultiChannelManagement => "MultiChannelManagement",
+            &CapiControlManagement => "CapiControlManagement",
+            &EthernetNetworking => "EthernetNetworking",
+            &AtmNetworking => "AtmNetworking",
+            &WirelessHandsetControlModel => "WirelessHandsetControlModel",
+            &MobileDirectLineModel => "MobileDirectLineModel",
+            &MdlmDetail => "MdlmDetail",
+            &DeviceManagementModel => "DeviceManagementModel",
+            &Obex => "Obex",
+            &CommandSet => "CommandSet",
+            &CommandSetDetail => "CommandSetDetail",
+            &TelephoneControlModel => "TelephoneControlModel",
+            &ObexServiceIdentifier => "ObexServiceIdentifier",
+            &Ncm => "Ncm",
+            &Mbim => "Mbim",
+            &MbimExtended => "MbimExtended",
+            &FutureUse{..} => "FutureUse",
+            &VendorSpecific{..} => "VendorSpecific",
+        }.into()
+    }
+    /// returns data length and formated source code of data part
+    #[allow(non_snake_case)]
+    fn source_data_part(&self) -> (String, u8) {
+        use self::CdcInterfaceFunctionalDescriptor::*;
+        match self {
+            &Header{ ref bcdCDC } => {
+                (format!("{bcdCDC_LSB}, {bcdCDC_MSB},    // bcdCDC",
+                bcdCDC_MSB = msb(bcdCDC.id()),
+                bcdCDC_LSB = lsb(bcdCDC.id())),
+                2 ) // data length
+            },
+            &CallManagement{ bmCapabilities, bDataInterface } => {
+                (format!(r#"{bmCapabilities:#010b}, // bmCapabilities
+            {bDataInterface}, // bDataInterface"#,
+                         bmCapabilities = bmCapabilities,
+                         bDataInterface = bDataInterface ),
+                2 ) // data length
+            },
+            &AbstractControlManagement{ bmCapabilities } => {
+                (format!("{bmCapabilities:#010b}, // bmCapabilities",
+                         bmCapabilities = bmCapabilities ),
+                1 ) // data length
+            },
+            &Union{ bControlInterface,
+                    ref bSubordinateInterfaces } => {
+                let mut src = format!("{bControlInterface},        // bControlInterface",
+                                      bControlInterface = bControlInterface );
+                for (i, if_nr) in bSubordinateInterfaces.iter().enumerate() {
+                    src.push_str(&format!("\n\t\t\t{},        // bSubordinateInterface{}", if_nr, i));
+                }
+                (src, 1u8 + bSubordinateInterfaces.len() as u8)
+            },
+            _ => unimplemented!(),
         }
     }
 }
@@ -74,8 +240,20 @@ impl BcdUsb {
     pub fn id(&self) -> u16 {
         match self {
             &BcdUsb::Usb10 => 0x0100,
-            &BcdUsb::Usb11 => 0x0110,
+            &BcdUsb::Usb11 => 0x0101, // 0x0110,
             &BcdUsb::Usb20 => 0x0200,
+        }
+    }
+}
+
+pub enum BcdCdc {
+    Cdc12,
+}
+
+impl BcdCdc {
+    pub fn id(&self) -> u16 {
+        match self {
+            &BcdCdc::Cdc12 => 0x0110,
         }
     }
 }
@@ -282,9 +460,9 @@ impl DeviceDescriptor {
     pub fn source(&self) -> String {
         format!(r#"
     pub const DEVICEDESCRIPTOR: &'static [u8] = &[
-        0x{bLength:x},      // bLength
+        {bLength},      // bLength
         0x{bDescriptorType:x},      // bDescriptorType
-        0x{bcdUSB_LSB:x}, 0x{bcdUSB_MSB:x},// bcdUSB
+        {bcdUSB_LSB}, {bcdUSB_MSB},// bcdUSB
         0x{bDeviceClass:x},      // bDeviceClass
         0x{bDeviceSubClass:x},      // bDeviceSubClass
         0x{bDeviceProtocol:x},      // bDeviceProtocol
@@ -335,7 +513,7 @@ impl ConfigurationDescriptor {
     pub fn source(&self) -> String {
         format!(r#"
         // CONFIGURATION DESCRIPTOR
-            0x{bLength:x},      // bLength
+            {bLength},      // bLength
             0x{bDescriptorType:x},      // bDescriptorType
             0x{wTotalLength_LSB:x}, 0x{wTotalLength_MSB:x},// wTotalLength
             0x{bNumInterfaces:x},      // bNumInterfaces
@@ -365,7 +543,7 @@ pub struct InterfaceDescriptor {
     pub bInterfaceSubClass : u8,
     pub bInterfaceProtocol : u8,
     pub iInterface : StringId,
-    pub cdcs : Vec<CDCDescriptor>,
+    pub cdcs : Vec<CdcInterfaceFunctionalDescriptor>,
 }
 
 impl InterfaceDescriptor {
@@ -373,7 +551,7 @@ impl InterfaceDescriptor {
     pub fn source(&self) -> String {
         format!(r#"
         // INTERFACE
-            0x{bLength:x},      // bLength
+            {bLength},      // bLength
             0x{bDescriptorType:x},      // bDescriptorType
             0x{bInterfaceNumber:x},      // bInterfaceNumber
             0x{bAlternateSetting:x},      // bAlternateSetting
@@ -397,30 +575,7 @@ impl InterfaceDescriptor {
 }
 
 
-#[allow(non_snake_case)]
-pub struct CDCDescriptor {
-    pub bDescriptorSubType : CDCDescriptorSubTypes,
-    pub bytes : Vec<u8>,
-}
 
-impl CDCDescriptor {
-    pub fn len(&self) -> u8 { 3 + self.bytes.len() as u8 }
-    pub fn source(&self) -> String {
-        let mut s = format!(r#"
-        // CDC
-            0x{bLength:x},      // bLength
-            0x{bDescriptorType:x},      // bDescriptorType
-            0x{bDescriptorSubType:x},      // bDescriptorSubType
-            "#,
-            bLength = self.len(),
-            bDescriptorType = DescriptorTypes::Cdc.id(),
-            bDescriptorSubType = self.bDescriptorSubType.id());
-        for b in self.bytes.iter() {
-            s.push_str(&format!("0x{:x}, ", b));
-        }
-        s
-    }
-}
 
 #[allow(non_snake_case)]
 pub struct EndpointDescriptor {
@@ -435,7 +590,7 @@ impl EndpointDescriptor {
     pub fn source(&self) -> String {
         format!(r#"
         // ENDPOINT
-            0x{bLength:x},      // bLength
+            {bLength},      // bLength
             0x{bDescriptorType:x},      // bDescriptorType
             0x{bEndpointAddress:x},      // bEndpointAddress
             0x{bmAttributes:x},      // bmAttributes
@@ -468,7 +623,7 @@ impl StringDescriptorZero {
     pub fn source(&self) -> String {
         let mut s = format!(r#"
     const STRINGZERODESCRIPTOR: &'static [u8] = &[
-        0x{bLength:x},      // bLength
+        {bLength},      // bLength
         0x{bDescriptorType:x},      // bDescriptorType
         "#,
             bLength = self.len(),
@@ -497,11 +652,11 @@ impl StringDescriptor {
             id : id,
         }
     }
-    pub fn len(&self) -> u8 { (2 + self.bString.as_bytes().len()) as u8 }
+    pub fn len(&self) -> u8 { (2 + 2 * self.bString.as_bytes().len()) as u8 }
     pub fn source(&self) -> String {
         let mut s = format!(r#"
     pub const STRING_{}_DESCRIPTOR: &'static [u8] = &[
-        0x{bLength:x},      // bLength
+        {bLength},      // bLength
         0x{bDescriptorType:x},      // bDescriptorType
         // {bString}
         "#,
@@ -509,8 +664,8 @@ impl StringDescriptor {
             bLength = self.len(),
             bDescriptorType = DescriptorTypes::String.id(),
             bString = self.bString);
-        for byte in self.bString.as_bytes().iter() {
-            s.push_str(&format!("0x{:x}, ", byte));
+        for byte in self.bString.encode_utf16() {
+            s.push_str(&format!("0x{:x}, 0x{:x}, ", byte as u8, (byte >> 8) as u8));
         }
         s.push_str("\n    ];");
         s
@@ -572,7 +727,13 @@ impl DescriptorTree {
             source.push(configdescr.source());
             for interfacedescr in configdescr.interfaces.iter() {
                 source.push(interfacedescr.source());
-                for cdcdescr in interfacedescr.cdcs.iter() {
+                if let Some(cdc) = interfacedescr.cdcs.first() {
+                    match cdc {
+                        &CdcInterfaceFunctionalDescriptor::Header{..} => {},
+                        _ => panic!("First cdc descriptor must be of type Header"),
+                    }
+                }
+                for cdcdescr in interfacedescr.cdcs.iter() { // all cdcs must be next to each other
                     source.push(cdcdescr.source());
                 }
                 for endpointdescr in interfacedescr.endpoints.iter() {
@@ -663,10 +824,10 @@ impl DescriptorTree {
 
     fn source_buffer_descriptor_table(&self) -> String {
         let num_bds = self.num_bufferdescriptors();
-        let max_addr = self.max_endpoint_addr();
+        //let max_addr = self.max_endpoint_addr();
         let mut s = String::with_capacity(200);
-        writeln!(s, "\n    pub const MAX_ENDPOINT_ADDR : u8 = {};" , max_addr).unwrap();
-        writeln!(s, "\n    pub const NUM_BUFFERDESCRIPTORS : usize = {};" , num_bds).unwrap();
+        //writeln!(s, "\n    pub const MAX_ENDPOINT_ADDR : u8 = {};" , max_addr).unwrap();
+        //writeln!(s, "\n    pub const NUM_BUFFERDESCRIPTORS : usize = {};" , num_bds).unwrap();
         writeln!(s, r#"
     extern {{
         #[no_mangle]
@@ -676,11 +837,11 @@ impl DescriptorTree {
 
     #[allow(non_snake_case, dead_code)]
     #[inline(always)]
-    pub fn BufferDescriptors() -> &'static mut [::usb::BufferDescriptor; {}] {{
-        unsafe {{ &mut usbbufferdescriptors }}
+    pub fn BufferDescriptors() -> &'static mut [::usb::BufferDescriptor] {{
+        unsafe {{ &mut usbbufferdescriptors[..] }}
     }}
 
-        "# , num_bds, num_bds).unwrap();
+        "# , num_bds).unwrap();
 
         s
     }
@@ -725,11 +886,17 @@ impl DescriptorTree {
                     }
                 }
             }
-            source.push_str("\n    pub const ENDPOINTCONFIG_FOR_REGISTERS: &'static [u8] = &[\n\t\t");
+            source.push_str("\n    pub const ENDPOINTCONFIG_FOR_REGISTERS: &'static [Usb_endpt_endpt] = &[");
             for cfg in (&endp_configs[..]).iter() {
-                write!(source, " 0x{:02x},", cfg.0).unwrap();
+                write!(source, "\n\t\tUsb_endpt_endpt::from_raw(0x{:02x}),", cfg.0).unwrap();
             }
             source.push_str("\n    ];");
+            source.push_str(r#"
+    #[allow(non_snake_case, dead_code)]
+    #[inline(always)]
+    pub fn EndpointconfigForRegisters() -> &'static [Usb_endpt_endpt] {
+        unsafe { &mut ENDPOINTCONFIG_FOR_REGISTERS }
+    }"#);
         }
         Ok(source)
     }

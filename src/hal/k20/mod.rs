@@ -41,7 +41,7 @@ pub mod rtc;
 pub mod clocks;
 
 /// K20 USB Tranceiver
-pub mod usb;
+// pub mod usb;
 
 /// K20 Peripheral Interrupt Timer
 pub mod pit;

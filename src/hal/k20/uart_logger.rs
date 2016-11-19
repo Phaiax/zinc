@@ -26,6 +26,7 @@ use log::{LogRecord, LogLevelFilter, LogMetadata, LogLevel};
 use super::uart;
 use core::fmt::Write;
 use core::fmt::Arguments;
+use hal::cortex_m4::systick::get_current;
 
 /// f
 pub static mut LOGGING_UART: Option<uart::Uart> = None;
@@ -51,7 +52,7 @@ impl log::Log for UartLogger {
 
     fn log(&self, record: &LogRecord) {
         if let &mut Some(ref mut uart) = unsafe { &mut LOGGING_UART } {
-            match (record.level(), super::rtc::time()) {
+            match (record.level(), Some(get_current()) /* super::rtc::time() */ ) {
                 (LogLevel::Info, None) => {
                     let _ = write!(uart, "\r\n{} - {}",
                                      record.level(), record.args());
@@ -63,12 +64,16 @@ impl log::Log for UartLogger {
                                      level, file, line, record.args());
                 },
                 (level, Some(time)) => {
-                    let _ = write!(uart, "\r\n[{time:>9}] {level:5} {module}:{line} - {args}",
+                    let _ = write!(uart, "\r\n[{time:>9}] :{line} - {args}",
+                                     time = time,
+                                     line = record.location().line(),
+                                     args = record.args());
+/*                    let _ = write!(uart, "\r\n[{time:>9}] {level:5} {module}:{line} - {args}",
                                      time = time, level = level,
                                      module = record.target(),
                                      line = record.location().line(),
                                      args = record.args());
-                }
+*/                }
             }
         }
     }

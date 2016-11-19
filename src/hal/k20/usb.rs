@@ -36,6 +36,37 @@ use core::slice;
 use core::mem;
 use core::ptr;
 
+use usbmempool::{AllocatedUsbPacket, BufferPointerMagic};
+
+
+pub enum OddEven {
+    Even = 0b0000_0000,
+    Odd = 0b0000_0001,
+}
+
+pub enum TxRx {
+    Rx = 0b0000_0000,
+    Tx = 0b0000_0010,
+}
+
+pub enum Ep {
+    Ep0 = 0b00_0000_00,
+    Ep1 = 0b00_0001_00,
+    Ep2 = 0b00_0010_00,
+    Ep3 = 0b00_0011_00,
+    Ep4 = 0b00_0100_00,
+    Ep5 = 0b00_0101_00,
+    Ep6 = 0b00_0110_00,
+    Ep7 = 0b00_0111_00,
+    Ep8 = 0b00_1000_00,
+    Ep9 = 0b00_1001_00,
+    Ep10 = 0b00_1010_00,
+    Ep11 = 0b00_1011_00,
+    Ep12 = 0b00_1100_00,
+    Ep13 = 0b00_1101_00,
+    Ep14 = 0b00_1110_00,
+    Ep15 = 0b00_1111_00,
+}
 
 ioregs!(BufferDescriptor = { //! An individual K20 Buffer Descriptor
     0 => reg32 control { //! Control attributes
@@ -72,12 +103,14 @@ impl BufferDescriptor_control {
         setter
     }
 }
+
 impl BufferDescriptor_control_Get {
     /// Return the token for this buffer descriptor (overloaded with keep/ninc/dts/bdt_stall
     pub fn pid_tok(&self) -> u32 {
         ((self.value >> 2) & 0b1111)
     }
 }
+
 impl<'a> BufferDescriptor_control_Update<'a> {
     /// Set the value of the pid_tok field
     #[inline(always)]
@@ -104,7 +137,23 @@ impl<'a> BufferDescriptor_control_Update<'a> {
     }
 }
 
+impl BufferDescriptor_addr {
+}
+
 impl BufferDescriptor {
+
+    pub fn swap_usb_packet(&self, i : Option<AllocatedUsbPacket>) -> Option<AllocatedUsbPacket> {
+        let a = self.addr.addr();
+        self.addr.ignoring_state().set_addr(match i {
+            Some(p) => unsafe { p.into_buf_ptr() } as u32,
+            None => 0 });
+        if a != 0 {
+            Some( unsafe { AllocatedUsbPacket::from_raw_buf_ptr(a as *mut u8) } )
+        } else {
+            None
+        }
+    }
+
     /// _
     pub unsafe fn interpret_buf_as_setup_packet(&self) -> SetupPacket {
         assert!(self.addr.addr() != 0);

@@ -23,7 +23,7 @@ pub struct UsbConfig {
 }
 
 impl UsbConfig {
-    pub fn new(descriptortree : DescriptorTree) -> UsbConfig {
+    pub fn new(descriptortree : DescriptorTree, ) -> UsbConfig {
         UsbConfig {
             descriptortree : descriptortree,
         }
@@ -38,5 +38,47 @@ impl UsbConfig {
         for p in source.drain(..) {
             base_config.add_src(p);
         }
+
+        base_config.add_src(r#"
+
+    use usbmempool::{MemoryPool, UsbPacket};
+
+    static mut POOL : Option<MemoryPool<[UsbPacket; 32]>> = None;
+    pub fn pool_ref() -> &'static MemoryPool<[UsbPacket; 32]> {
+        let r = unsafe { &mut POOL };
+        if r.is_none() {
+            *r = Some(MemoryPool::new());
+        }
+        &r.as_ref().unwrap()
+    }
+
+    use usbserial::UsbSerial;
+    use usbdriver::UsbDriver;
+
+    static mut USBDRIVER : Option<UsbSerial> = None;
+
+    pub fn usb_ref() -> &'static UsbSerial {
+        let r = unsafe { &mut USBDRIVER };
+        if r.is_none() {
+            *r = Some(UsbSerial::new(
+                UsbDriver::new(pool_ref(),
+                               DEVICEDESCRIPTOR,
+                               CONFIGDESCRIPTORTREE,
+                               get_str,
+                               BufferDescriptors(),
+                               ENDPOINTCONFIG_FOR_REGISTERS
+                                )));
+        }
+        &r.as_ref().unwrap()
+    }
+
+    #[allow(dead_code)]
+    #[no_mangle]
+    pub unsafe extern "C" fn isr_usb() {
+        usb_ref().isr();
+    }
+
+"#.into());
+
     }
 }

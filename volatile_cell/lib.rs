@@ -15,7 +15,7 @@
 
 //! A cell that with volatile setter and getter.
 
-#![feature(core_intrinsics)]
+#![feature(core_intrinsics, const_fn)]
 #![no_std]
 
 
@@ -44,6 +44,14 @@ pub struct VolatileCell<T> where T: Copy {
 }
 
 impl<T: Copy> VolatileCell<T> {
+
+  /// Create a cell with initial value.
+  pub const fn const_new(value: T) -> VolatileCell<T> {
+    VolatileCell {
+      value: value,
+    }
+  }
+
   /// Create a cell with initial value.
   pub fn new(value: T) -> VolatileCell<T> {
     VolatileCell {

@@ -37,12 +37,13 @@ pub fn teensy_configurator(s : &mut McuSpecificConfig) {
             .set_alls(Smc_pmprot_alls::Allowed)
             .set_avlls(Smc_pmprot_avlls::Allowed);
 
-        // enable osc, 8-32 MHz range, low power mode
-        // MCG_C2 = MCG_C2_RANGE0(2) | MCG_C2_EREFS;
+        // // enable capacitors for crystal
+        // OSC0_CR = OSC_SC8P | OSC_SC2P | OSC_ERCLKEN;
         OSC().cr
             .ignoring_state()
             .set_sc8p(true)
-            .set_sc2p(true);
+            .set_sc2p(true)
+            .set_er(Osc_cr_er::Enabled);
 
         // enable osc, 8-32 MHz range, low power mode
         // MCG_C2 = MCG_C2_RANGE0(2) | MCG_C2_EREFS;
@@ -59,6 +60,7 @@ pub fn teensy_configurator(s : &mut McuSpecificConfig) {
 
         // wait for crystal oscillator to begin
         wait_for!(MCG().status.oscinit0() == Mcg_status_oscinit0::Initialized);
+        // wait for FLL to use oscillator
         wait_for!(MCG().status.irefst() == Mcg_status_irefst::External);
         // wait for MCGOUT to use oscillator
         wait_for!(MCG().status.clkst() == Mcg_status_clkst::External);
@@ -86,7 +88,7 @@ pub fn teensy_configurator(s : &mut McuSpecificConfig) {
             .set_outdiv4(2);
         // SIM_CLKDIV2 = SIM_CLKDIV2_USBDIV(2) | SIM_CLKDIV2_USBFRAC;
         SIM().clkdiv2.ignoring_state()
-            .set_usbdiv(1)
+            .set_usbdiv(2)
             .set_usbfrac(true);
 
         // switch to PLL as clock source, FLL input = 16 MHz / 512

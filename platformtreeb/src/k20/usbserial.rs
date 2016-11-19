@@ -16,15 +16,15 @@
 use super::usbdescriptors::{DescriptorTree, ConfigurationDescriptor, DeviceDescriptor,
     DeviceClass, MaxPacketSizeEP0, Bcd, StringId, ConfAttributes, MaxCurrent, BcdUsb,
     InterfaceDescriptor, EndpointDescriptor, EndpointAddress,
-    TransferType, CDCDescriptor, CDCDescriptorSubTypes};
+    TransferType, CdcInterfaceFunctionalDescriptor, BcdCdc};
 
 
 pub fn make_device_tree_for_teensy_serial() -> DescriptorTree {
     let d = DeviceDescriptor {
-        bcdUSB : BcdUsb::Usb20,
-        bDeviceClass : DeviceClass::ClassCode(2),
-        bDeviceSubClass : 0,
-        bDeviceProtocol : 0,
+        bcdUSB : BcdUsb::Usb11,
+        bDeviceClass : DeviceClass::ClassCode(2), // Communications Device Class
+        bDeviceSubClass : 0, // Communications Device Subclass code, unused at this time.
+        bDeviceProtocol : 0, // Communications Device Protocol code, unused at this time.
         bMaxPacketSize0 : MaxPacketSizeEP0::Bytes64,
         idVendor : 0x16C0,
         idProduct : 0x0483,
@@ -44,31 +44,18 @@ pub fn make_device_tree_for_teensy_serial() -> DescriptorTree {
                 milli_amps : 100
             },
             interfaces : vec![
-                InterfaceDescriptor {
+                InterfaceDescriptor { // Communications Class Interface
                     bInterfaceNumber : 0,
                     bAlternateSetting : 0,
-                    bInterfaceClass : 0x02,
-                    bInterfaceSubClass : 0x02,
-                    bInterfaceProtocol : 0x01,
+                    bInterfaceClass : 0x02, // Communications Interface Class
+                    bInterfaceSubClass : 0x02, // Communications Class Subclass: Abstract Control Model
+                    bInterfaceProtocol : 0x01, // Communications Interface Class Control Protocol: AT Commands: V.250 etc
                     iInterface : StringId::new("Int1"),
                     cdcs : vec![
-                        CDCDescriptor {
-                            bDescriptorSubType : CDCDescriptorSubTypes::CDCHeader,
-                            bytes : vec![0x10, 0x01], // bcdCDC
-                        },
-                        CDCDescriptor {
-                            bDescriptorSubType : CDCDescriptorSubTypes::CallManagement,
-                            bytes : vec![0x00, 0x01], // [bmCapabilities, bDataInterface]
-                        },
-                        CDCDescriptor {
-                            bDescriptorSubType : CDCDescriptorSubTypes::AbstactControl,
-                            bytes : vec![0x06], // bmCapabilities?
-                        },
-                        CDCDescriptor {
-                            bDescriptorSubType : CDCDescriptorSubTypes::UnionFunctional,
-                            bytes : vec![0, 1], // [bMasterInterface, bSlaveInterface0]
-                        }
-
+                        CdcInterfaceFunctionalDescriptor::Header { bcdCDC : BcdCdc::Cdc12 },
+                        CdcInterfaceFunctionalDescriptor::CallManagement { bmCapabilities : 0, bDataInterface : 1 },
+                        CdcInterfaceFunctionalDescriptor::AbstractControlManagement { bmCapabilities : 0x06 },
+                        CdcInterfaceFunctionalDescriptor::Union { bControlInterface : 0, bSubordinateInterfaces : vec![1] },
                     ],
                     endpoints : vec![
                         EndpointDescriptor {
@@ -79,12 +66,12 @@ pub fn make_device_tree_for_teensy_serial() -> DescriptorTree {
                         },
                     ],
                 },
-                InterfaceDescriptor {
+                InterfaceDescriptor { // Data Class Interface
                     bInterfaceNumber : 1,
                     bAlternateSetting : 0,
-                    bInterfaceClass : 0x0A,
-                    bInterfaceSubClass : 0x00,
-                    bInterfaceProtocol : 0x00,
+                    bInterfaceClass : 0x0A, // Data Interface Class code
+                    bInterfaceSubClass : 0x00, // At this time this field is un-used for Data Class interfaces and should have a value of 00h.
+                    bInterfaceProtocol : 0x00, // Data Interface Class Protocol: No class specific protocol required
                     iInterface : StringId::new("Int2"),
                     cdcs : vec![],
                     endpoints : vec![
