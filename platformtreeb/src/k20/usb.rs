@@ -57,7 +57,7 @@ impl UsbConfig {
 
     static mut USBDRIVER : Option<UsbSerial> = None;
 
-    pub fn usb_ref() -> &'static UsbSerial {
+    pub fn usb_ref() -> &'static mut UsbSerial {
         let r = unsafe { &mut USBDRIVER };
         if r.is_none() {
             *r = Some(UsbSerial::new(
@@ -69,7 +69,7 @@ impl UsbConfig {
                                ENDPOINTCONFIG_FOR_REGISTERS
                                 )));
         }
-        &r.as_ref().unwrap()
+        r.as_mut().unwrap()
     }
 
     #[allow(dead_code)]

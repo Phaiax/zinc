@@ -859,14 +859,14 @@ impl DescriptorTree {
                     let endp_nr = endpointdescr.bEndpointAddress.addr() as usize;
                     let cfg : &mut Endpointconfig = &mut endp_configs[endp_nr];
                     match endpointdescr.bEndpointAddress {
-                        EndpointAddress::In(_) => {
+                        EndpointAddress::Out(_) => {
                             if cfg.rx() {
                                 return Err(format!("Endpoint {} described as IN more than once.", endp_nr));
                             } else {
                                 cfg.set_rx();
                             }
                         },
-                        EndpointAddress::Out(_) => {
+                        EndpointAddress::In(_) => {
                             if cfg.tx() {
                                 return Err(format!("Endpoint {} described as OUT more than once.", endp_nr));
                             } else {
@@ -888,7 +888,7 @@ impl DescriptorTree {
             }
             source.push_str("\n    pub const ENDPOINTCONFIG_FOR_REGISTERS: &'static [Usb_endpt_endpt] = &[");
             for cfg in (&endp_configs[..]).iter() {
-                write!(source, "\n\t\tUsb_endpt_endpt::from_raw(0x{:02x}),", cfg.0).unwrap();
+                write!(source, "\n\t\tUsb_endpt_endpt::from_raw(0b{:08b}),", cfg.0).unwrap();
             }
             source.push_str("\n    ];");
             source.push_str(r#"
