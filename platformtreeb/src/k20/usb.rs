@@ -53,7 +53,7 @@ impl UsbConfig {
     }
 
     use usbserial::UsbSerial;
-    use usbdriver::UsbDriver;
+    use usbdriver::{UsbDriver, DescriptorsAndMore};
 
     static mut USBDRIVER : Option<UsbSerial> = None;
 
@@ -62,12 +62,14 @@ impl UsbConfig {
         if r.is_none() {
             *r = Some(UsbSerial::new(
                 UsbDriver::new(pool_ref(),
-                               DEVICEDESCRIPTOR,
-                               CONFIGDESCRIPTORTREE,
-                               get_str,
                                BufferDescriptors(),
-                               ENDPOINTCONFIG_FOR_REGISTERS
-                                )));
+                               DescriptorsAndMore {
+                                    devicedescriptor: DEVICEDESCRIPTOR,
+                                    configdescriptortree: CONFIGDESCRIPTORTREE,
+                                    get_str: get_str,
+                                    endpointconfig_for_registers: ENDPOINTCONFIG_FOR_REGISTERS,
+                               },
+                               )));
         }
         r.as_mut().unwrap()
     }
